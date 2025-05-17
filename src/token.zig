@@ -1,5 +1,3 @@
-// I'll just start with adding support for plain paragraphs, heading and blockquotes
-
 pub const TokenType = enum {
     EOF,
     text,

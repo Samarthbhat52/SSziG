@@ -29,8 +29,8 @@ pub const Lexer = struct {
         l.readPosition += 1;
     }
 
-    fn eatWhiteSpaces(l: *Lexer) void {
-        while (l.ch == ' ') {
+    fn eatNewLine(l: *Lexer) void {
+        while (l.ch == '\n') {
             l.readChar();
         }
     }
@@ -50,7 +50,6 @@ pub const Lexer = struct {
     }
 
     fn getContent(l: *Lexer) []const u8 {
-        // l.eatWhiteSpaces(); // Remove all white spaces between delimiter and content.
         const position = l.position;
 
         while (isValidChar(l.ch)) {
@@ -62,10 +61,7 @@ pub const Lexer = struct {
 
     pub fn nextToken(l: *Lexer) !token {
         var tok: token = undefined;
-
-        while (l.ch == '\n') {
-            l.readChar();
-        }
+        l.eatNewLine();
 
         switch (l.ch) {
             '#' => {
