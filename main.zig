@@ -6,7 +6,7 @@ pub fn main() !void {
 
     var lex = lexer.Lexer.init(input);
 
-    for (0..4) |_| {
+    for (0..5) |_| {
         const tok = try lex.nextToken();
         std.debug.print("type: {s}, content: {s}\n", .{ @tagName(tok.type), tok.literal });
     }

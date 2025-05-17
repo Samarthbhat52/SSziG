@@ -14,10 +14,13 @@ test "heading token" {
     const expected_tokens = [_]Token{
         Token{ .type = TokenType.heading, .literal = "#" },
         Token{ .type = TokenType.text, .literal = " Main" },
+        Token{ .type = TokenType.newLine, .literal = "newline" },
         Token{ .type = TokenType.heading, .literal = "##" },
         Token{ .type = TokenType.text, .literal = " Secondary" },
+        Token{ .type = TokenType.newLine, .literal = "newline" },
         Token{ .type = TokenType.heading, .literal = "###" },
         Token{ .type = TokenType.text, .literal = " Tertiary" },
+        Token{ .type = TokenType.EOF, .literal = "EOF" },
     };
 
     for (expected_tokens) |expected| {
@@ -37,8 +40,10 @@ test "heading and quote token" {
     const expected_tokens = [_]Token{
         Token{ .type = TokenType.heading, .literal = "#" },
         Token{ .type = TokenType.text, .literal = " Heading main" },
+        Token{ .type = TokenType.newLine, .literal = "newline" },
         Token{ .type = TokenType.quote, .literal = ">" },
         Token{ .type = TokenType.text, .literal = " Blockquote" },
+        Token{ .type = TokenType.EOF, .literal = "EOF" },
     };
 
     for (expected_tokens) |expected| {
@@ -58,11 +63,13 @@ test "heading and italic token" {
     const expected_tokens = [_]Token{
         Token{ .type = TokenType.heading, .literal = "#" },
         Token{ .type = TokenType.text, .literal = " Heading main" },
+        Token{ .type = TokenType.newLine, .literal = "newline" },
         Token{ .type = TokenType.text, .literal = "some " },
         Token{ .type = TokenType.italic, .literal = "*" },
         Token{ .type = TokenType.text, .literal = "italic" },
         Token{ .type = TokenType.italic, .literal = "*" },
         Token{ .type = TokenType.text, .literal = " text" },
+        Token{ .type = TokenType.EOF, .literal = "EOF" },
     };
 
     for (expected_tokens) |expected| {
@@ -82,6 +89,7 @@ test "bold text token" {
         Token{ .type = TokenType.text, .literal = "bold" },
         Token{ .type = TokenType.bold, .literal = "**" },
         Token{ .type = TokenType.text, .literal = " text" },
+        Token{ .type = TokenType.EOF, .literal = "EOF" },
     };
 
     for (expected_tokens) |expected| {

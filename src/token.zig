@@ -1,5 +1,6 @@
 pub const TokenType = enum {
     EOF,
+    newLine,
     text,
     heading,
     quote,

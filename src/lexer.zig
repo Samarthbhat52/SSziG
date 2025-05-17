@@ -61,9 +61,12 @@ pub const Lexer = struct {
 
     pub fn nextToken(l: *Lexer) !token {
         var tok: token = undefined;
-        l.eatNewLine();
+        // l.eatNewLine();
 
         switch (l.ch) {
+            '\n' => {
+                tok = token.newToken(tokenType.newLine, "newline");
+            },
             '#' => {
                 const headerDelimiter = l.getHeaderDelimiter();
                 tok = token.newToken(tokenType.heading, headerDelimiter);
