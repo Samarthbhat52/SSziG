@@ -2,12 +2,13 @@ const std = @import("std");
 const lexer = @import("src/lexer.zig");
 
 pub fn main() !void {
-    const input = "## Heading main\n> Blockquote";
+    const input =
+        \\# Heading main
+        \\some ** bold**text
+    ;
+    const tokens = try lexer.lex(input);
 
-    var lex = lexer.Lexer.init(input);
-
-    for (0..5) |_| {
-        const tok = try lex.nextToken();
-        std.debug.print("type: {s}, content: {s}\n", .{ @tagName(tok.type), tok.literal });
+    for (tokens) |val| {
+        std.log.debug("token: {s}, value: {s}", .{ @tagName(val.type), val.literal });
     }
 }
