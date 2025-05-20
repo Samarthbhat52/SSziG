@@ -3,9 +3,14 @@ const token = @import("token.zig").Token;
 const tokenType = @import("token.zig").TokenType;
 
 fn isValidChar(ch: u8) bool {
-    const valid = (ch >= 'a' and ch <= 'z') or
-        (ch >= 'A' and ch <= 'Z') or (ch == ' ');
-    return valid;
+    const stop_chars = [_]u8{ '*', '`', '#', '[', ']', ')', '\n', 0 };
+    for (stop_chars) |c| {
+        if (ch == c) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 pub const Lexer = struct {
@@ -29,12 +34,6 @@ pub const Lexer = struct {
         l.readPosition += 1;
     }
 
-    fn eatNewLine(l: *Lexer) void {
-        while (l.ch == '\n') {
-            l.readChar();
-        }
-    }
-
     fn getHeaderDelimiter(l: *Lexer) []const u8 {
         const position = l.position;
 
@@ -46,22 +45,23 @@ pub const Lexer = struct {
     }
 
     fn peekAhead(l: *Lexer) u8 {
+        if (l.position == l.input.len - 1) {
+            return 0;
+        }
+
         return l.input[l.readPosition];
     }
 
-    fn getContent(l: *Lexer) []const u8 {
-        const position = l.position;
-
+    fn getContentEndPos(l: *Lexer) usize {
         while (isValidChar(l.ch)) {
             l.readChar();
         }
 
-        return l.input[position..l.position];
+        return l.position;
     }
 
     pub fn nextToken(l: *Lexer) !token {
         var tok: token = undefined;
-        // l.eatNewLine();
 
         switch (l.ch) {
             '\n' => {
@@ -71,13 +71,10 @@ pub const Lexer = struct {
                 const headerDelimiter = l.getHeaderDelimiter();
                 tok = token.newToken(tokenType.heading, headerDelimiter);
             },
-            '>' => {
-                tok = token.newToken(tokenType.quote, ">");
-            },
             '*' => {
-                const nextChar = l.peekAhead();
+                const next_char = l.peekAhead();
 
-                if (nextChar != '*') {
+                if (next_char != '*') {
                     tok = token.newToken(tokenType.italic, "*");
                 } else {
                     l.readChar();
@@ -86,8 +83,10 @@ pub const Lexer = struct {
             },
             0 => tok = token.newToken(tokenType.EOF, "EOF"),
             else => {
-                const content = l.getContent();
-                tok = token.newToken(tokenType.text, content);
+                const start_pos = l.position;
+                const content = l.getContentEndPos();
+
+                tok = token.newToken(tokenType.text, l.input[start_pos..content]);
                 return tok;
             },
         }
@@ -97,10 +96,19 @@ pub const Lexer = struct {
     }
 };
 
-// What other tokens do we need?
-// # => Heading -> heading type (1..6) function -> get the heading value function.
-// > => blockquote -> get the blockquote value function.
-// * => italic or bold -> get italic/bold value function
-// - => unordered list -> Get all the ul values -> until a new line doesn't start with -
-// 1. => ordered list -> Get all ol values -> new line not strating with a number.
-// `` => inline code block -> get the contents between code block.
+pub fn lex(input: []const u8) ![]token {
+    // Allocate memory for token stream.
+    var tokens = std.ArrayList(token).init(std.heap.page_allocator);
+    defer tokens.deinit();
+
+    var l = Lexer.init(input);
+    var tok = try l.nextToken();
+
+    while (tok.type != tokenType.EOF) {
+        try tokens.append(tok);
+
+        tok = try l.nextToken();
+    }
+
+    return tokens.toOwnedSlice(); // Return to caller
+}
