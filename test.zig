@@ -1,5 +1,5 @@
 const std = @import("std");
-const Lexer = @import("src/lexer.zig");
+const Lexer = @import("src/lexer.zig").Lexer;
 const Token = @import("src/token.zig").Token;
 const TokenType = @import("src/token.zig").TokenType;
 
@@ -9,7 +9,7 @@ test "heading token" {
         \\## Secondary
         \\### Tertiary
     ;
-    const tokens = try Lexer.lex(input);
+    var lexer = Lexer.init(input);
 
     const expected_tokens = [_]Token{
         Token{ .type = TokenType.heading, .literal = "#" },
@@ -20,13 +20,13 @@ test "heading token" {
         Token{ .type = TokenType.newLine, .literal = "newline" },
         Token{ .type = TokenType.heading, .literal = "###" },
         Token{ .type = TokenType.text, .literal = " Tertiary" },
+        Token{ .type = TokenType.EOF, .literal = "EOF" },
     };
 
-    try std.testing.expectEqual(expected_tokens.len, tokens.len);
-
-    for (0..expected_tokens.len) |i| {
-        try std.testing.expectEqual(expected_tokens[i].type, tokens[i].type);
-        try std.testing.expectEqualStrings(expected_tokens[i].literal, tokens[i].literal);
+    for (expected_tokens) |expected| {
+        const tok = try lexer.nextToken();
+        try std.testing.expectEqual(expected.type, tok.type);
+        try std.testing.expectEqualStrings(expected.literal, tok.literal);
     }
 }
 
@@ -35,7 +35,7 @@ test "heading and quote token" {
         \\# Heading main
         \\> Blockquote
     ;
-    const tokens = try Lexer.lex(input);
+    var lexer = Lexer.init(input);
 
     const expected_tokens = [_]Token{
         Token{ .type = TokenType.heading, .literal = "#" },
@@ -43,13 +43,13 @@ test "heading and quote token" {
         Token{ .type = TokenType.newLine, .literal = "newline" },
         Token{ .type = TokenType.quote, .literal = ">" },
         Token{ .type = TokenType.text, .literal = " Blockquote" },
+        Token{ .type = TokenType.EOF, .literal = "EOF" },
     };
 
-    try std.testing.expectEqual(expected_tokens.len, tokens.len);
-
-    for (0..expected_tokens.len) |i| {
-        try std.testing.expectEqual(expected_tokens[i].type, tokens[i].type);
-        try std.testing.expectEqualStrings(expected_tokens[i].literal, tokens[i].literal);
+    for (expected_tokens) |expected| {
+        const tok = try lexer.nextToken();
+        try std.testing.expectEqual(expected.type, tok.type);
+        try std.testing.expectEqualStrings(expected.literal, tok.literal);
     }
 }
 
@@ -58,7 +58,7 @@ test "heading and italic token" {
         \\# Heading main
         \\some *italic* text
     ;
-    const tokens = try Lexer.lex(input);
+    var lexer = Lexer.init(input);
 
     const expected_tokens = [_]Token{
         Token{ .type = TokenType.heading, .literal = "#" },
@@ -69,19 +69,19 @@ test "heading and italic token" {
         Token{ .type = TokenType.text, .literal = "italic" },
         Token{ .type = TokenType.italic, .literal = "*" },
         Token{ .type = TokenType.text, .literal = " text" },
+        Token{ .type = TokenType.EOF, .literal = "EOF" },
     };
 
-    try std.testing.expectEqual(expected_tokens.len, tokens.len);
-
-    for (0..expected_tokens.len) |i| {
-        try std.testing.expectEqual(expected_tokens[i].type, tokens[i].type);
-        try std.testing.expectEqualStrings(expected_tokens[i].literal, tokens[i].literal);
+    for (expected_tokens) |expected| {
+        const tok = try lexer.nextToken();
+        try std.testing.expectEqual(expected.type, tok.type);
+        try std.testing.expectEqualStrings(expected.literal, tok.literal);
     }
 }
 
 test "bold text token" {
     const input = "this is **bold** text";
-    const tokens = try Lexer.lex(input);
+    var lexer = Lexer.init(input);
 
     const expected_tokens = [_]Token{
         Token{ .type = TokenType.text, .literal = "this is " },
@@ -89,12 +89,12 @@ test "bold text token" {
         Token{ .type = TokenType.text, .literal = "bold" },
         Token{ .type = TokenType.bold, .literal = "**" },
         Token{ .type = TokenType.text, .literal = " text" },
+        Token{ .type = TokenType.EOF, .literal = "EOF" },
     };
 
-    try std.testing.expectEqual(expected_tokens.len, tokens.len);
-
-    for (0..expected_tokens.len) |i| {
-        try std.testing.expectEqual(expected_tokens[i].type, tokens[i].type);
-        try std.testing.expectEqualStrings(expected_tokens[i].literal, tokens[i].literal);
+    for (expected_tokens) |expected| {
+        const tok = try lexer.nextToken();
+        try std.testing.expectEqual(expected.type, tok.type);
+        try std.testing.expectEqualStrings(expected.literal, tok.literal);
     }
 }

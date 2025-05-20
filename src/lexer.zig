@@ -1,28 +1,11 @@
 const std = @import("std");
 const token = @import("token.zig").Token;
 const tokenType = @import("token.zig").TokenType;
-const handler = @import("token_handler.zig");
 
 fn isValidChar(ch: u8) bool {
     const valid = (ch >= 'a' and ch <= 'z') or
         (ch >= 'A' and ch <= 'Z') or (ch == ' ');
     return valid;
-}
-
-pub fn lex(input: []const u8) ![]token {
-    // Allocate memory for token stream.
-    var tokens = std.ArrayList(token).init(std.heap.page_allocator);
-    defer tokens.deinit();
-
-    var l = Lexer.init(input);
-    var tok = try nextToken(&l);
-
-    while (tok.type != tokenType.EOF) {
-        try tokens.append(tok);
-        tok = try nextToken(&l);
-    }
-
-    return tokens.toOwnedSlice(); // Return to caller
 }
 
 pub const Lexer = struct {
@@ -35,7 +18,7 @@ pub const Lexer = struct {
         return .{ .ch = input[0], .position = 0, .readPosition = 1, .input = input };
     }
 
-    pub fn readChar(l: *Lexer) void {
+    fn readChar(l: *Lexer) void {
         if (l.readPosition >= l.input.len) {
             l.ch = 0;
         } else {
@@ -52,7 +35,7 @@ pub const Lexer = struct {
         }
     }
 
-    pub fn getHeaderDelimiter(l: *Lexer) []const u8 {
+    fn getHeaderDelimiter(l: *Lexer) []const u8 {
         const position = l.position;
 
         while (l.peekAhead() == '#') {
@@ -62,11 +45,11 @@ pub const Lexer = struct {
         return l.input[position..l.readPosition];
     }
 
-    pub fn peekAhead(l: *Lexer) u8 {
+    fn peekAhead(l: *Lexer) u8 {
         return l.input[l.readPosition];
     }
 
-    pub fn getContent(l: *Lexer) []const u8 {
+    fn getContent(l: *Lexer) []const u8 {
         const position = l.position;
 
         while (isValidChar(l.ch)) {
@@ -75,35 +58,44 @@ pub const Lexer = struct {
 
         return l.input[position..l.position];
     }
-};
 
-pub fn nextToken(l: *Lexer) !token {
-    var tok: token = undefined;
+    pub fn nextToken(l: *Lexer) !token {
+        var tok: token = undefined;
+        // l.eatNewLine();
 
-    switch (l.ch) {
-        '\n' => {
-            tok = token.newToken(tokenType.newLine, "newline");
-        },
-        '#' => {
-            tok = handler.handleHeader(l);
-        },
-        '>' => {
-            tok = handler.handleQuote(l);
-        },
-        '*' => {
-            tok = handler.handleAstersik(l);
-        },
-        0 => tok = token.newToken(tokenType.EOF, "EOF"),
-        else => {
-            const content = l.getContent();
-            tok = token.newToken(tokenType.text, content);
-            return tok;
-        },
+        switch (l.ch) {
+            '\n' => {
+                tok = token.newToken(tokenType.newLine, "newline");
+            },
+            '#' => {
+                const headerDelimiter = l.getHeaderDelimiter();
+                tok = token.newToken(tokenType.heading, headerDelimiter);
+            },
+            '>' => {
+                tok = token.newToken(tokenType.quote, ">");
+            },
+            '*' => {
+                const nextChar = l.peekAhead();
+
+                if (nextChar != '*') {
+                    tok = token.newToken(tokenType.italic, "*");
+                } else {
+                    l.readChar();
+                    tok = token.newToken(tokenType.bold, "**");
+                }
+            },
+            0 => tok = token.newToken(tokenType.EOF, "EOF"),
+            else => {
+                const content = l.getContent();
+                tok = token.newToken(tokenType.text, content);
+                return tok;
+            },
+        }
+
+        l.readChar();
+        return tok;
     }
-
-    l.readChar();
-    return tok;
-}
+};
 
 // What other tokens do we need?
 // # => Heading -> heading type (1..6) function -> get the heading value function.
