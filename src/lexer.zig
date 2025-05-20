@@ -95,20 +95,3 @@ pub const Lexer = struct {
         return tok;
     }
 };
-
-pub fn lex(input: []const u8) ![]token {
-    // Allocate memory for token stream.
-    var tokens = std.ArrayList(token).init(std.heap.page_allocator);
-    defer tokens.deinit();
-
-    var l = Lexer.init(input);
-    var tok = try l.nextToken();
-
-    while (tok.type != tokenType.EOF) {
-        try tokens.append(tok);
-
-        tok = try l.nextToken();
-    }
-
-    return tokens.toOwnedSlice(); // Return to caller
-}
