@@ -5,7 +5,7 @@ const Lexer = @import("lexer.zig").Lexer;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
-const NodeType = enum {
+pub const NodeType = enum {
     document,
     paragraph,
     text,
@@ -14,7 +14,7 @@ const NodeType = enum {
     header,
 };
 
-const ASTNode = struct {
+pub const ASTNode = struct {
     type: NodeType,
     content: ?[]const u8 = null,
     children: ArrayList(ASTNode),
@@ -22,9 +22,12 @@ const ASTNode = struct {
     header_level: ?u8 = null,
 
     fn init(allocator: Allocator, node_type: NodeType) ASTNode {
+        var array_node = ArrayList(ASTNode).init(allocator);
+        errdefer array_node.deinit();
+
         return ASTNode{
             .type = node_type,
-            .children = ArrayList(ASTNode).init(allocator),
+            .children = array_node,
         };
     }
 
@@ -97,7 +100,7 @@ pub const Parser = struct {
                     // Create a new paragraph if null, add to the current one if not
 
                     if (paragraph_node == null) {
-                        paragraph_node = init(self.allocator, NodeType.paragraph);
+                        paragraph_node = ASTNode.init(self.allocator, NodeType.paragraph);
                     }
 
                     const inline_node = try self.parseInline();
@@ -136,7 +139,7 @@ pub const Parser = struct {
             },
             // Redundant currently, will fix later.
             else => {
-                const text_node = ASTNode.init(self.allocator, NodeType.text);
+                var text_node = ASTNode.init(self.allocator, NodeType.text);
                 text_node.content = self.current_token.literal;
 
                 try self.nextToken();

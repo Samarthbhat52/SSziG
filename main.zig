@@ -1,6 +1,7 @@
 const std = @import("std");
 const lexer = @import("src/lexer.zig");
 const parser = @import("src/parser.zig");
+const htmlGenerator = @import("src/nodeToHtml.zig").Html;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -8,17 +9,17 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    const input = "## Heading main";
+    const input = "####### Heading main";
     var lex = lexer.Lexer.init(input);
     var p = try parser.Parser.init(allocator, &lex);
 
     var document = try p.parse();
     defer document.deinit();
 
-    for (document.children.items) |val| {
-        std.log.info("val: {s}", .{@tagName(val.type)});
-        for (val.children.items) |r| {
-            std.log.info("val: {s}, content: {?s}", .{ @tagName(r.type), r.content });
-        }
-    }
+    var generator = htmlGenerator.init(allocator);
+    const html = try generator.generateHtml(document);
+
+    defer allocator.free(html);
+
+    std.log.debug("{s}", .{html});
 }
