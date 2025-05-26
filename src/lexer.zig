@@ -2,6 +2,16 @@ const std = @import("std");
 const token = @import("token.zig").Token;
 const tokenType = @import("token.zig").TokenType;
 
+fn getHeaderDelimiter(l: *Lexer) []const u8 {
+    const position = l.position;
+
+    while (l.peekAhead() == '#') {
+        l.readChar();
+    }
+
+    return l.input[position..l.readPosition];
+}
+
 fn isValidChar(ch: u8) bool {
     const stop_chars = [_]u8{ '*', '`', '#', '[', ']', ')', '\n', 0 };
     for (stop_chars) |c| {
@@ -23,6 +33,7 @@ pub const Lexer = struct {
         return .{ .ch = input[0], .position = 0, .readPosition = 1, .input = input };
     }
 
+    // Consumes a character
     fn readChar(l: *Lexer) void {
         if (l.readPosition >= l.input.len) {
             l.ch = 0;
@@ -34,16 +45,7 @@ pub const Lexer = struct {
         l.readPosition += 1;
     }
 
-    fn getHeaderDelimiter(l: *Lexer) []const u8 {
-        const position = l.position;
-
-        while (l.peekAhead() == '#') {
-            l.readChar();
-        }
-
-        return l.input[position..l.readPosition];
-    }
-
+    // looks ahead without consuming a character
     fn peekAhead(l: *Lexer) u8 {
         if (l.position == l.input.len - 1) {
             return 0;
@@ -52,6 +54,7 @@ pub const Lexer = struct {
         return l.input[l.readPosition];
     }
 
+    // all the characters till a non-valid character is found
     fn getContentEndPos(l: *Lexer) usize {
         while (isValidChar(l.ch)) {
             l.readChar();
@@ -68,7 +71,7 @@ pub const Lexer = struct {
                 tok = token.newToken(tokenType.newLine, "newline");
             },
             '#' => {
-                const headerDelimiter = l.getHeaderDelimiter();
+                const headerDelimiter = getHeaderDelimiter(l);
                 tok = token.newToken(tokenType.heading, headerDelimiter);
             },
             '*' => {

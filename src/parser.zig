@@ -51,6 +51,7 @@ pub const Parser = struct {
             .allocator = allocator,
         };
 
+        // init both current and peak tokens
         try parser.nextToken();
         try parser.nextToken();
 
@@ -67,23 +68,55 @@ pub const Parser = struct {
         var document = ASTNode.init(self.allocator, NodeType.document);
         errdefer document.deinit();
 
+        var paragraph_node: ?ASTNode = null;
+
         while (self.current_token.type != TokenType.EOF) {
-            const header_node = try self.pareseHeader();
-            try document.children.append(header_node);
+            switch (self.current_token.type) {
+                TokenType.heading => {
+                    // Check if there is a praragraph already and finalise it.
+                    if (paragraph_node != null) {
+                        try document.children.append(paragraph_node.?);
+                        // Reset paragraph node
+                        paragraph_node = null;
+                    }
+
+                    const header_node = try self.pareseHeader();
+                    try document.children.append(header_node);
+                },
+                TokenType.newLine => {
+                    // If next token is also new line, finalise the current paragraph node
+                    if (self.peek_token.type == TokenType.newLine and paragraph_node != null) {
+                        try document.children.append(paragraph_node.?);
+                        paragraph_node = null;
+                    }
+
+                    try self.nextToken();
+                },
+                else => {
+                    // A plain text node
+                    // Create a new paragraph if null, add to the current one if not
+
+                    if (paragraph_node == null) {
+                        paragraph_node = init(self.allocator, NodeType.paragraph);
+                    }
+
+                    const inline_node = try self.parseInline();
+                    try paragraph_node.?.children.append(inline_node);
+                },
+            }
         }
 
         return document;
     }
 
     fn pareseHeader(self: *Parser) !ASTNode {
-        var header_node = ASTNode.init(self.allocator, NodeType.header);
         const header_level: u8 = @intCast(self.current_token.literal.len);
 
+        var header_node = ASTNode.init(self.allocator, NodeType.header);
         header_node.header_level = header_level;
 
         try self.nextToken();
 
-        // TODO: Add parse inline later.
         while (self.current_token.type != TokenType.newLine and self.current_token.type != TokenType.EOF) {
             const inline_node = try self.parseInline();
             try header_node.children.append(inline_node);
@@ -93,11 +126,22 @@ pub const Parser = struct {
     }
 
     pub fn parseInline(self: *Parser) !ASTNode {
-        var text_node = ASTNode.init(self.allocator, NodeType.text);
-        text_node.content = self.current_token.literal;
+        switch (self.current_token.type) {
+            TokenType.text => {
+                var text_node = ASTNode.init(self.allocator, NodeType.text);
+                text_node.content = self.current_token.literal;
 
-        try self.nextToken();
+                try self.nextToken();
+                return text_node;
+            },
+            // Redundant currently, will fix later.
+            else => {
+                const text_node = ASTNode.init(self.allocator, NodeType.text);
+                text_node.content = self.current_token.literal;
 
-        return text_node;
+                try self.nextToken();
+                return text_node;
+            },
+        }
     }
 };
