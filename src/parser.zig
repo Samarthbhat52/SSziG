@@ -83,7 +83,10 @@ pub const Parser = struct {
                         paragraph_node = null;
                     }
 
-                    const header_node = try self.pareseHeader();
+                    // If there are more than 6 hashes, treat the whole thing as text
+                    const header_level: u8 = @intCast(self.current_token.literal.len);
+
+                    const header_node = try pareseHeader(self, header_level);
                     try document.children.append(header_node);
                 },
                 TokenType.newLine => {
@@ -112,22 +115,6 @@ pub const Parser = struct {
         return document;
     }
 
-    fn pareseHeader(self: *Parser) !ASTNode {
-        const header_level: u8 = @intCast(self.current_token.literal.len);
-
-        var header_node = ASTNode.init(self.allocator, NodeType.header);
-        header_node.header_level = header_level;
-
-        try self.nextToken();
-
-        while (self.current_token.type != TokenType.newLine and self.current_token.type != TokenType.EOF) {
-            const inline_node = try self.parseInline();
-            try header_node.children.append(inline_node);
-        }
-
-        return header_node;
-    }
-
     pub fn parseInline(self: *Parser) !ASTNode {
         switch (self.current_token.type) {
             TokenType.text => {
@@ -148,3 +135,17 @@ pub const Parser = struct {
         }
     }
 };
+
+fn pareseHeader(self: *Parser, level: u8) !ASTNode {
+    var header_node = ASTNode.init(self.allocator, NodeType.header);
+    header_node.header_level = level;
+
+    try self.nextToken();
+
+    while (self.current_token.type != TokenType.newLine and self.current_token.type != TokenType.EOF) {
+        const inline_node = try self.parseInline();
+        try header_node.children.append(inline_node);
+    }
+
+    return header_node;
+}

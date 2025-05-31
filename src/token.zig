@@ -11,6 +11,7 @@ pub const TokenType = enum {
 pub const Token = struct {
     type: TokenType,
     literal: []const u8,
+    header_level: ?u8 = null,
 
     pub fn newToken(tok: TokenType, lit: []const u8) Token {
         return .{ .type = tok, .literal = lit };
