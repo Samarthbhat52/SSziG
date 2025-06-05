@@ -1,6 +1,32 @@
 const std = @import("std");
 const token = @import("token.zig").Token;
 const tokenType = @import("token.zig").TokenType;
+const Allocator = std.mem.Allocator;
+const ArrayList = std.ArrayList;
+
+fn isValidHeader(header_literal: []const u8, l: *Lexer) bool {
+    // Too many '#' characters (max 6 for h1-h6)
+    if (header_literal.len > 6) return false;
+
+    // Must be followed by a space
+    if (l.peekAhead() != ' ') return false;
+
+    // If there is (are) space(s) after, consume it, We don't need it
+    eatWhiteSpaces(l);
+
+    // Check if there's actually content after the space
+    // (this seems to be what the original double-space check was doing)
+    const next_pos = l.position + 1;
+    if (next_pos < l.input.len and l.input[next_pos] == ' ') return false;
+
+    return true;
+}
+
+fn eatWhiteSpaces(l: *Lexer) void {
+    while (l.peekAhead() == ' ') {
+        l.readChar();
+    }
+}
 
 fn getHeaderDelimiter(l: *Lexer) []const u8 {
     const position = l.position;
@@ -27,12 +53,26 @@ pub const Lexer = struct {
     ch: u8,
     position: usize,
     readPosition: usize,
-    row: usize,
     col: usize,
     input: []const u8,
+    delim_stack: ArrayList(tokenType),
 
-    pub fn init(input: []const u8) Lexer {
-        return .{ .ch = input[0], .position = 0, .row = 0, .col = 0, .readPosition = 1, .input = input };
+    pub fn init(input: []const u8, allocator: Allocator) Lexer {
+        var delim_stack = ArrayList(tokenType).init(allocator);
+        errdefer delim_stack.deinit();
+
+        return .{
+            .ch = input[0],
+            .position = 0,
+            .col = 0,
+            .readPosition = 1,
+            .input = input,
+            .delim_stack = delim_stack,
+        };
+    }
+
+    pub fn deinit(l: *Lexer) void {
+        l.delim_stack.deinit();
     }
 
     // Consumes a character
@@ -43,7 +83,6 @@ pub const Lexer = struct {
 
         // Basically CRLF
         if (l.ch == '\n') {
-            l.row += 1;
             l.col = 0;
         } else if (l.ch != 0) {
             l.col += 1;
@@ -87,34 +126,38 @@ pub const Lexer = struct {
                 tok = token.newToken(tokenType.newLine, "newline");
             },
             '#' => {
-                // Not first character, not header
-                if (l.col != 0) {
-                    const content = l.getContent();
-                    tok = token.newToken(tokenType.text, content);
-                } else {
-                    // Now this is possibly a header.
-                    const header_literal = getHeaderDelimiter(l);
-
-                    // If there is no space, then it is just a text node
-                    // If too make '#', then too it is a text node
-                    if (header_literal.len > 6 or l.peekAhead() != ' ') {
-                        tok = token.newToken(tokenType.text, header_literal);
-                    } else {
-                        // Finally we have header. Skip the blank line
-
-                        l.readChar();
-                        tok = token.newToken(tokenType.heading, header_literal);
-                    }
-                }
+                tok = handleHeader(l);
             },
-            '*' => {
+            '*' => blk: {
+                // Get the next character
                 const next_char = l.peekAhead();
 
-                if (next_char != '*') {
-                    tok = token.newToken(tokenType.italic, "*");
+                // Get the latest delimiter (if any)
+                const last_delim = if (l.delim_stack.items.len > 0)
+                    l.delim_stack.items[l.delim_stack.items.len - 1]
+                else
+                    null;
+
+                // Check if there already is an italic delimiter
+                if (last_delim != null and last_delim.? == tokenType.italic) {
+                    // Parse it as italic and pop off the value from stack
+                    _ = l.delim_stack.pop(); // Close italic
+                    tok = handleItalics();
+                    break :blk;
+                }
+
+                // Check if next char is bold
+                if (next_char == '*') {
+                    if (last_delim != null and last_delim.? == tokenType.bold) {
+                        _ = l.delim_stack.pop(); // Close bold
+                    } else {
+                        try l.delim_stack.append(tokenType.bold); // Open bold
+                    }
+                    tok = handleBold(l);
                 } else {
-                    l.readChar();
-                    tok = token.newToken(tokenType.bold, "**");
+                    // Handle a new opening italics tag
+                    try l.delim_stack.append(tokenType.italic); // Open italic
+                    tok = handleItalics();
                 }
             },
             0 => tok = token.newToken(tokenType.EOF, "EOF"),
@@ -130,3 +173,30 @@ pub const Lexer = struct {
         return tok;
     }
 };
+
+pub fn handleHeader(l: *Lexer) token {
+    // Headers must start at the beginning of a line
+    if (l.col != 0) {
+        const content = l.getContent();
+        return token.newToken(tokenType.text, content);
+    }
+
+    const header_literal = getHeaderDelimiter(l);
+
+    // Check if this is a valid header format
+    if (!isValidHeader(header_literal, l)) {
+        return token.newToken(tokenType.text, header_literal);
+    }
+
+    // Consume the space after the header delimiter
+    return token.newToken(tokenType.heading, header_literal);
+}
+
+pub fn handleItalics() token {
+    return token.newToken(tokenType.italic, "*");
+}
+
+pub fn handleBold(l: *Lexer) token {
+    l.readChar();
+    return token.newToken(tokenType.bold, "**");
+}

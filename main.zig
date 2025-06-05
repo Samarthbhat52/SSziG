@@ -1,20 +1,24 @@
 const std = @import("std");
 const lexer = @import("src/lexer.zig");
+const tokenType = @import("src/token.zig").TokenType;
 // const parser = @import("src/parser.zig");
 // const htmlGenerator = @import("src/nodeToHtml.zig").Html;
 
 pub fn main() !void {
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // defer _ = gpa.deinit();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
 
-    // const allocator = gpa.allocator();
+    const allocator = gpa.allocator();
 
-    const input = "###### Heading main\n### Heading two";
-    var lex = lexer.Lexer.init(input);
+    const input = "##";
+    var lex = lexer.Lexer.init(input, allocator);
+    defer lex.deinit();
 
-    for (0..5) |_| {
-        const tok = try lex.nextToken();
-        std.log.info("type: {s}, token: {s}", .{ @tagName(tok.type), tok.literal });
+    var tok = try lex.nextToken();
+
+    while (tok.type != tokenType.EOF) {
+        std.log.info("type: {s}, token: '{s}'", .{ @tagName(tok.type), tok.literal });
+        tok = try lex.nextToken();
     }
 
     // var p = try parser.Parser.init(allocator, &lex);
