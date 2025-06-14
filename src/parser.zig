@@ -40,18 +40,39 @@ pub const ASTNode = struct {
     }
 };
 
+const delimiter = struct {
+    type: TokenType,
+    len: usize,
+    can_open: bool,
+    can_close: bool,
+};
+
+fn peekStack(stack: *ArrayList(delimiter)) ?*delimiter {
+    const stack_len = stack.items.len;
+    if (stack_len > 0) {
+        return stack.items[stack_len - 1];
+    }
+
+    return null;
+}
+
 pub const Parser = struct {
     lexer: *Lexer,
     current_token: Token,
     peek_token: Token,
     allocator: Allocator,
+    delimiter_stack: ArrayList(delimiter),
 
     pub fn init(allocator: Allocator, lexer: *Lexer) !Parser {
+        var delim_stack = ArrayList(delimiter).init(allocator);
+        errdefer delim_stack.deinit();
+
         var parser = Parser{
             .lexer = lexer,
             .current_token = undefined,
             .peek_token = undefined,
             .allocator = allocator,
+            .delimiter_stack = delim_stack,
         };
 
         // init both current and peak tokens
@@ -61,9 +82,14 @@ pub const Parser = struct {
         return parser;
     }
 
+    pub fn deinit(p: *Parser) void {
+        p.delimiter_stack.deinit();
+    }
+
     pub fn nextToken(self: *Parser) !void {
         self.current_token = self.peek_token;
         self.peek_token = try self.lexer.nextToken();
+        // std.log.info("type: '{s}', token: '{s}'", .{ @tagName(self.current_token.type), self.current_token.literal });
     }
 
     pub fn parse(self: *Parser) !ASTNode {
@@ -72,6 +98,11 @@ pub const Parser = struct {
         errdefer document.deinit();
 
         var paragraph_node: ?ASTNode = null;
+        errdefer {
+            if (paragraph_node) |*para| {
+                para.deinit();
+            }
+        }
 
         while (self.current_token.type != TokenType.EOF) {
             switch (self.current_token.type) {
@@ -83,11 +114,18 @@ pub const Parser = struct {
                         paragraph_node = null;
                     }
 
-                    // If there are more than 6 hashes, treat the whole thing as text
                     const header_level: u8 = @intCast(self.current_token.literal.len);
 
                     const header_node = try pareseHeader(self, header_level);
                     try document.children.append(header_node);
+                },
+                TokenType.asterisk => {
+                    // if (paragraph_node == null) {
+                    //     paragraph_node = ASTNode.init(self.allocator, NodeType.paragraph);
+                    // }
+                    //
+                    // const node = try parseAsterisk(self);
+                    // try paragraph_node.?.children.append(node);
                 },
                 TokenType.newLine => {
                     // If next token is also new line, finalise the current paragraph node
@@ -110,6 +148,11 @@ pub const Parser = struct {
                     try paragraph_node.?.children.append(inline_node);
                 },
             }
+        }
+
+        if (paragraph_node != null) {
+            try document.children.append(paragraph_node.?);
+            paragraph_node = null;
         }
 
         return document;
