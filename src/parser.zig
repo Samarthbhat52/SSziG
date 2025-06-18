@@ -13,6 +13,10 @@ pub const NodeType = enum {
     italic,
     header,
 };
+const ParseError = error{
+    OutOfMemory,
+    // Add other potential errors from your lexer here
+};
 
 pub const ASTNode = struct {
     type: NodeType,
@@ -47,7 +51,7 @@ const delimiter = struct {
     can_close: bool,
 };
 
-fn peekStack(stack: *ArrayList(delimiter)) ?*delimiter {
+fn peekStack(stack: *ArrayList(delimiter)) ?delimiter {
     const stack_len = stack.items.len;
     if (stack_len > 0) {
         return stack.items[stack_len - 1];
@@ -60,6 +64,7 @@ pub const Parser = struct {
     lexer: *Lexer,
     current_token: Token,
     peek_token: Token,
+    prev_token: Token,
     allocator: Allocator,
     delimiter_stack: ArrayList(delimiter),
 
@@ -71,6 +76,7 @@ pub const Parser = struct {
             .lexer = lexer,
             .current_token = undefined,
             .peek_token = undefined,
+            .prev_token = Token.newToken(TokenType.EOF, "EOF"),
             .allocator = allocator,
             .delimiter_stack = delim_stack,
         };
@@ -87,9 +93,9 @@ pub const Parser = struct {
     }
 
     pub fn nextToken(self: *Parser) !void {
+        self.prev_token = self.current_token;
         self.current_token = self.peek_token;
         self.peek_token = try self.lexer.nextToken();
-        // std.log.info("type: '{s}', token: '{s}'", .{ @tagName(self.current_token.type), self.current_token.literal });
     }
 
     pub fn parse(self: *Parser) !ASTNode {
@@ -120,12 +126,15 @@ pub const Parser = struct {
                     try document.children.append(header_node);
                 },
                 TokenType.asterisk => {
-                    // if (paragraph_node == null) {
-                    //     paragraph_node = ASTNode.init(self.allocator, NodeType.paragraph);
-                    // }
-                    //
-                    // const node = try parseAsterisk(self);
-                    // try paragraph_node.?.children.append(node);
+                    // Check if there is a praragraph already and finalise it.
+                    if (paragraph_node != null) {
+                        try document.children.append(paragraph_node.?);
+                        // Reset paragraph node
+                        paragraph_node = null;
+                    }
+
+                    const asterisk_node = try parseAsterisk(self);
+                    try document.children.append(asterisk_node);
                 },
                 TokenType.newLine => {
                     // If next token is also new line, finalise the current paragraph node
@@ -158,7 +167,7 @@ pub const Parser = struct {
         return document;
     }
 
-    pub fn parseInline(self: *Parser) !ASTNode {
+    pub fn parseInline(self: *Parser) ParseError!ASTNode {
         switch (self.current_token.type) {
             TokenType.text => {
                 var text_node = ASTNode.init(self.allocator, NodeType.text);
@@ -166,6 +175,12 @@ pub const Parser = struct {
 
                 try self.nextToken();
                 return text_node;
+            },
+            TokenType.asterisk => {
+                const ast_node = try parseAsterisk(self);
+                try self.nextToken();
+
+                return ast_node;
             },
             // Redundant currently, will fix later.
             else => {
@@ -179,7 +194,7 @@ pub const Parser = struct {
     }
 };
 
-fn pareseHeader(self: *Parser, level: u8) !ASTNode {
+fn pareseHeader(self: *Parser, level: u8) ParseError!ASTNode {
     var header_node = ASTNode.init(self.allocator, NodeType.header);
     header_node.header_level = level;
 
@@ -191,4 +206,35 @@ fn pareseHeader(self: *Parser, level: u8) !ASTNode {
     }
 
     return header_node;
+}
+
+fn parseAsterisk(self: *Parser) ParseError!ASTNode {
+    var text_node = ASTNode.init(self.allocator, NodeType.text);
+
+    try self.nextToken();
+
+    while (self.current_token.type != TokenType.newLine and self.current_token.type != TokenType.EOF) {
+        if (self.current_token.type == TokenType.asterisk) {
+            break;
+        }
+        const inline_node = try self.parseInline();
+        try text_node.children.append(inline_node);
+    }
+
+    text_node.type = NodeType.italic;
+    return text_node;
+}
+
+fn can_open(self: *Parser) bool {
+    const behind = self.prev_token;
+    const ahead = self.peek_token;
+
+    if (behind.type != TokenType.EOF) {
+        const behind_length = behind.literal.len;
+        const last_behind_char = if (behind_length > 0) behind_length - 1 else 0;
+
+        return ahead.literal[0] == ' ' and behind.literal[last_behind_char] != ' ';
+    } else {
+        return ahead.literal[0] == ' ';
+    }
 }

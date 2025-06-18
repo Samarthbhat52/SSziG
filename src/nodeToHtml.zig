@@ -35,6 +35,20 @@ pub const Html = struct {
                 }
                 try output.appendSlice("</p>");
             },
+            NodeType.italic => {
+                try output.appendSlice("<em>");
+                for (node.children.items) |child| {
+                    try self.generateNode(output, child);
+                }
+                try output.appendSlice("</em>");
+            },
+            NodeType.bold => {
+                try output.appendSlice("<strong>");
+                for (node.children.items) |child| {
+                    try self.generateNode(output, child);
+                }
+                try output.appendSlice("</strong>");
+            },
             NodeType.header => {
                 const level = node.header_level orelse 1;
 

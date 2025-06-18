@@ -28,10 +28,10 @@ fn eatWhiteSpaces(l: *Lexer) void {
     }
 }
 
-fn getHeaderDelimiter(l: *Lexer) []const u8 {
+fn getDelimiterRun(l: *Lexer, delim: u8) []const u8 {
     const position = l.position;
 
-    while (l.peekAhead() == '#') {
+    while (l.peekAhead() == delim) {
         l.readChar();
     }
 
@@ -128,37 +128,9 @@ pub const Lexer = struct {
             '#' => {
                 tok = handleHeader(l);
             },
-            '*' => blk: {
-                // Get the next character
-                const next_char = l.peekAhead();
-
-                // Get the latest delimiter (if any)
-                const last_delim = if (l.delim_stack.items.len > 0)
-                    l.delim_stack.items[l.delim_stack.items.len - 1]
-                else
-                    null;
-
-                // Check if there already is an italic delimiter
-                if (last_delim != null and last_delim.? == tokenType.italic) {
-                    // Parse it as italic and pop off the value from stack
-                    _ = l.delim_stack.pop(); // Close italic
-                    tok = handleItalics();
-                    break :blk;
-                }
-
-                // Check if next char is bold
-                if (next_char == '*') {
-                    if (last_delim != null and last_delim.? == tokenType.bold) {
-                        _ = l.delim_stack.pop(); // Close bold
-                    } else {
-                        try l.delim_stack.append(tokenType.bold); // Open bold
-                    }
-                    tok = handleBold(l);
-                } else {
-                    // Handle a new opening italics tag
-                    try l.delim_stack.append(tokenType.italic); // Open italic
-                    tok = handleItalics();
-                }
+            '*' => {
+                const asterisk = getDelimiterRun(l, '*');
+                tok = token.newToken(tokenType.asterisk, asterisk);
             },
             0 => tok = token.newToken(tokenType.EOF, "EOF"),
             else => {
@@ -181,7 +153,7 @@ pub fn handleHeader(l: *Lexer) token {
         return token.newToken(tokenType.text, content);
     }
 
-    const header_literal = getHeaderDelimiter(l);
+    const header_literal = getDelimiterRun(l, '#');
 
     // Check if this is a valid header format
     if (!isValidHeader(header_literal, l)) {
@@ -190,13 +162,4 @@ pub fn handleHeader(l: *Lexer) token {
 
     // Consume the space after the header delimiter
     return token.newToken(tokenType.heading, header_literal);
-}
-
-pub fn handleItalics() token {
-    return token.newToken(tokenType.italic, "*");
-}
-
-pub fn handleBold(l: *Lexer) token {
-    l.readChar();
-    return token.newToken(tokenType.bold, "**");
 }
