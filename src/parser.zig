@@ -126,15 +126,12 @@ pub const Parser = struct {
                     try document.children.append(header_node);
                 },
                 TokenType.asterisk => {
-                    // Check if there is a praragraph already and finalise it.
-                    if (paragraph_node != null) {
-                        try document.children.append(paragraph_node.?);
-                        // Reset paragraph node
-                        paragraph_node = null;
+                    if (paragraph_node == null) {
+                        paragraph_node = ASTNode.init(self.allocator, NodeType.paragraph);
                     }
 
                     const asterisk_node = try parseAsterisk(self);
-                    try document.children.append(asterisk_node);
+                    try paragraph_node.?.children.append(asterisk_node);
                 },
                 TokenType.newLine => {
                     // If next token is also new line, finalise the current paragraph node
@@ -178,7 +175,6 @@ pub const Parser = struct {
             },
             TokenType.asterisk => {
                 const ast_node = try parseAsterisk(self);
-                try self.nextToken();
 
                 return ast_node;
             },
@@ -209,32 +205,75 @@ fn pareseHeader(self: *Parser, level: u8) ParseError!ASTNode {
 }
 
 fn parseAsterisk(self: *Parser) ParseError!ASTNode {
-    var text_node = ASTNode.init(self.allocator, NodeType.text);
+    var container_node = ASTNode.init(self.allocator, NodeType.text);
+    const can_open_here = can_open(self);
 
-    try self.nextToken();
+    if (can_open_here) {
+        try self.nextToken();
 
-    while (self.current_token.type != TokenType.newLine and self.current_token.type != TokenType.EOF) {
-        if (self.current_token.type == TokenType.asterisk) {
-            break;
+        while (self.current_token.type != TokenType.newLine and self.current_token.type != TokenType.EOF) {
+            const can_close_here = can_close(self);
+            if (self.current_token.type == TokenType.asterisk and can_close_here) {
+                const node_type = switch (self.current_token.literal.len) {
+                    1 => NodeType.italic,
+                    else => NodeType.bold,
+                };
+
+                container_node.type = node_type;
+                try self.nextToken();
+
+                return container_node;
+            }
+
+            const inline_node = try self.parseInline();
+            try container_node.children.append(inline_node);
         }
-        const inline_node = try self.parseInline();
-        try text_node.children.append(inline_node);
+    } else {
+        container_node.content = self.current_token.literal;
+        try self.nextToken();
     }
 
-    text_node.type = NodeType.italic;
-    return text_node;
+    return container_node;
 }
 
 fn can_open(self: *Parser) bool {
     const behind = self.prev_token;
     const ahead = self.peek_token;
 
-    if (behind.type != TokenType.EOF) {
-        const behind_length = behind.literal.len;
-        const last_behind_char = if (behind_length > 0) behind_length - 1 else 0;
+    if (ahead.type == TokenType.EOF or ahead.type == TokenType.newLine) {
+        return false;
+    }
 
-        return ahead.literal[0] == ' ' and behind.literal[last_behind_char] != ' ';
+    const ahead_has_char = ahead.literal.len > 0;
+    const behind_has_char = behind.literal.len > 0;
+
+    if (behind.type != TokenType.EOF and behind.type != TokenType.newLine) {
+        const last_behind_char = if (behind_has_char) behind.literal[behind.literal.len - 1] else 0;
+        return ahead_has_char and ahead.literal[0] != ' ' and last_behind_char == ' ';
     } else {
-        return ahead.literal[0] == ' ';
+        return ahead_has_char and ahead.literal[0] != ' ';
+    }
+}
+
+fn can_close(self: *Parser) bool {
+    const behind = self.prev_token;
+    const ahead = self.peek_token;
+
+    if (behind.type == TokenType.EOF or behind.type == TokenType.newLine) {
+        return false;
+    }
+
+    if (ahead.type == TokenType.EOF) {
+        return true;
+    }
+
+    const ahead_has_char = ahead.literal.len > 0;
+    const behind_has_char = behind.literal.len > 0;
+
+    if (ahead.type != TokenType.EOF and ahead.type != TokenType.newLine) {
+        const last_behind_char = if (behind_has_char) behind.literal[behind.literal.len - 1] else 0;
+        return ahead_has_char and ahead.literal[0] == ' ' and last_behind_char != ' ';
+    } else {
+        return ahead_has_char and ahead.literal[0] == ' ';
     }
 }
