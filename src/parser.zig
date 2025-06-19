@@ -4,6 +4,7 @@ const TokenType = @import("token.zig").TokenType;
 const Lexer = @import("lexer.zig").Lexer;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
+const parseAsterisk = @import("./parseAsterisk.zig").parseAsterisk;
 
 pub const NodeType = enum {
     document,
@@ -13,7 +14,8 @@ pub const NodeType = enum {
     italic,
     header,
 };
-const ParseError = error{
+
+pub const ParseError = error{
     OutOfMemory,
     // Add other potential errors from your lexer here
 };
@@ -25,7 +27,7 @@ pub const ASTNode = struct {
     url: ?[]const u8 = null,
     header_level: ?u8 = null,
 
-    fn init(allocator: Allocator, node_type: NodeType) ASTNode {
+    pub fn init(allocator: Allocator, node_type: NodeType) ASTNode {
         var array_node = ArrayList(ASTNode).init(allocator);
         errdefer array_node.deinit();
 
@@ -44,21 +46,21 @@ pub const ASTNode = struct {
     }
 };
 
-const delimiter = struct {
-    type: TokenType,
-    len: usize,
-    can_open: bool,
-    can_close: bool,
-};
-
-fn peekStack(stack: *ArrayList(delimiter)) ?delimiter {
-    const stack_len = stack.items.len;
-    if (stack_len > 0) {
-        return stack.items[stack_len - 1];
-    }
-
-    return null;
-}
+// const delimiter = struct {
+//     type: TokenType,
+//     len: usize,
+//     can_open: bool,
+//     can_close: bool,
+// };
+//
+// fn peekStack(stack: *ArrayList(delimiter)) ?delimiter {
+//     const stack_len = stack.items.len;
+//     if (stack_len > 0) {
+//         return stack.items[stack_len - 1];
+//     }
+//
+//     return null;
+// }
 
 pub const Parser = struct {
     lexer: *Lexer,
@@ -66,19 +68,14 @@ pub const Parser = struct {
     peek_token: Token,
     prev_token: Token,
     allocator: Allocator,
-    delimiter_stack: ArrayList(delimiter),
 
     pub fn init(allocator: Allocator, lexer: *Lexer) !Parser {
-        var delim_stack = ArrayList(delimiter).init(allocator);
-        errdefer delim_stack.deinit();
-
         var parser = Parser{
             .lexer = lexer,
             .current_token = undefined,
             .peek_token = undefined,
             .prev_token = Token.newToken(TokenType.EOF, "EOF"),
             .allocator = allocator,
-            .delimiter_stack = delim_stack,
         };
 
         // init both current and peak tokens
@@ -86,10 +83,6 @@ pub const Parser = struct {
         try parser.nextToken();
 
         return parser;
-    }
-
-    pub fn deinit(p: *Parser) void {
-        p.delimiter_stack.deinit();
     }
 
     pub fn nextToken(self: *Parser) !void {
@@ -202,78 +195,4 @@ fn pareseHeader(self: *Parser, level: u8) ParseError!ASTNode {
     }
 
     return header_node;
-}
-
-fn parseAsterisk(self: *Parser) ParseError!ASTNode {
-    var container_node = ASTNode.init(self.allocator, NodeType.text);
-    const can_open_here = can_open(self);
-
-    if (can_open_here) {
-        try self.nextToken();
-
-        while (self.current_token.type != TokenType.newLine and self.current_token.type != TokenType.EOF) {
-            const can_close_here = can_close(self);
-            if (self.current_token.type == TokenType.asterisk and can_close_here) {
-                const node_type = switch (self.current_token.literal.len) {
-                    1 => NodeType.italic,
-                    else => NodeType.bold,
-                };
-
-                container_node.type = node_type;
-                try self.nextToken();
-
-                return container_node;
-            }
-
-            const inline_node = try self.parseInline();
-            try container_node.children.append(inline_node);
-        }
-    } else {
-        container_node.content = self.current_token.literal;
-        try self.nextToken();
-    }
-
-    return container_node;
-}
-
-fn can_open(self: *Parser) bool {
-    const behind = self.prev_token;
-    const ahead = self.peek_token;
-
-    if (ahead.type == TokenType.EOF or ahead.type == TokenType.newLine) {
-        return false;
-    }
-
-    const ahead_has_char = ahead.literal.len > 0;
-    const behind_has_char = behind.literal.len > 0;
-
-    if (behind.type != TokenType.EOF and behind.type != TokenType.newLine) {
-        const last_behind_char = if (behind_has_char) behind.literal[behind.literal.len - 1] else 0;
-        return ahead_has_char and ahead.literal[0] != ' ' and last_behind_char == ' ';
-    } else {
-        return ahead_has_char and ahead.literal[0] != ' ';
-    }
-}
-
-fn can_close(self: *Parser) bool {
-    const behind = self.prev_token;
-    const ahead = self.peek_token;
-
-    if (behind.type == TokenType.EOF or behind.type == TokenType.newLine) {
-        return false;
-    }
-
-    if (ahead.type == TokenType.EOF) {
-        return true;
-    }
-
-    const ahead_has_char = ahead.literal.len > 0;
-    const behind_has_char = behind.literal.len > 0;
-
-    if (ahead.type != TokenType.EOF and ahead.type != TokenType.newLine) {
-        const last_behind_char = if (behind_has_char) behind.literal[behind.literal.len - 1] else 0;
-        return ahead_has_char and ahead.literal[0] == ' ' and last_behind_char != ' ';
-    } else {
-        return ahead_has_char and ahead.literal[0] == ' ';
-    }
 }

@@ -24,7 +24,6 @@ pub fn main() !void {
     // }
 
     var p = try parser.Parser.init(allocator, &lex);
-    defer p.deinit();
 
     var document = try p.parse();
     defer document.deinit();
