@@ -4,136 +4,134 @@ const ASTNode = @import("./parser.zig").ASTNode;
 const NodeType = @import("./parser.zig").NodeType;
 const ParseError = @import("./parser.zig").ParseError;
 const TokenType = @import("token.zig").TokenType;
+const Token = @import("token.zig").Token;
 const ArrayList = std.ArrayList;
+const isWhitespace = std.ascii.isWhitespace;
 
-fn batchAsterisk(self: *Parser, asterisk_run: []const u8) ![][]const u8 {
-    var i: usize = 0;
-    var chunk_index: usize = 0;
-    const len = asterisk_run.len;
-
-    const count: usize = (len + 1) / 2;
-
-    const result = try self.allocator.alloc([]const u8, count);
-    errdefer self.allocator.free(result);
-
-    while (i < len) {
-        const slice_len: usize = if (i + 1 < len) 2 else 1;
-        result[chunk_index] = asterisk_run[i .. i + slice_len];
-        i += slice_len;
-        chunk_index += 1;
-    }
-
-    return result;
-}
-
-fn recureiveAsteriskParse(self: *Parser, batched_asterisk: [][]const u8) ParseError!ASTNode {
-    const delim = batched_asterisk[0];
-    const node_type = switch (delim.len) {
-        1 => NodeType.italic,
-        else => NodeType.bold,
-    };
+fn recureiveAsteriskParse(self: *Parser, consume_count: usize, contentBuf: ArrayList(ASTNode)) ParseError!ASTNode {
+    const delim_size: usize = if (consume_count >= 2) 2 else 1;
+    const node_type = if (delim_size == 2) NodeType.bold else NodeType.italic;
 
     var node = ASTNode.init(self.allocator, node_type);
 
-    if (batched_asterisk.len == 1) {
-        if (self.NodeBuffer) |n| {
-            node.children = n.children;
-            self.NodeBuffer = null;
+    const new_consume_count: usize = consume_count - delim_size;
+
+    if (new_consume_count == 0) {
+        for (contentBuf.items) |item| {
+            try node.children.append(item);
         }
         return node;
     }
 
-    const children_node = try recureiveAsteriskParse(self, batched_asterisk[1..]);
+    const children_node = try recureiveAsteriskParse(self, new_consume_count, contentBuf);
     try node.children.append(children_node);
 
     return node;
 }
 
 pub fn parseAsterisk(self: *Parser) ParseError!ASTNode {
-    var container_node = ASTNode.init(self.allocator, NodeType.text);
+    var contentBuf = ArrayList(ASTNode).init(self.allocator);
+    defer contentBuf.deinit();
 
-    const open_token = self.current_token;
-    const open_token_len = open_token.literal.len;
-
+    // Save opening delim length
+    const open_delim = self.current_token;
+    var open_delim_len = self.current_token.literal.len;
     const can_open_here = can_open(self);
 
     if (can_open_here) {
         try self.nextToken();
 
-        while (self.current_token.type != TokenType.newLine and self.current_token.type != TokenType.EOF) {
-            const can_close_here = can_close(self);
-            if (self.current_token.type == TokenType.asterisk and can_close_here) {
-                const close_token = self.current_token;
-                const close_token_len = close_token.literal.len;
+        while (self.current_token.type != TokenType.EOF and self.current_token.type != TokenType.newLine) {
+            if (self.current_token.type == TokenType.asterisk and can_close(self)) {
+                // Found the closing delimeter. handle recursive parsing
+                const close_delim = self.current_token;
+                var close_delim_len = self.current_token.literal.len;
+                const consume_count: usize = @min(open_delim_len, close_delim_len);
 
-                var asterisk_run: []const u8 = undefined;
-                if (open_token_len >= close_token_len) {
-                    asterisk_run = open_token.literal[0..close_token_len];
+                const node = try recureiveAsteriskParse(self, consume_count, contentBuf);
+
+                open_delim_len = open_delim_len - consume_count;
+                close_delim_len = close_delim_len - consume_count;
+
+                if (open_delim_len > 0) {
+                    contentBuf.clearRetainingCapacity();
+                    try contentBuf.append(node);
+                    try self.nextToken();
+                    continue;
                 }
 
-                if (close_token_len >= open_token_len) {
-                    asterisk_run = open_token.literal[0..open_token_len];
+                if (close_delim_len > 0) {
+                    const new_current_token = Token.newToken(TokenType.asterisk, close_delim.literal[0..close_delim_len]);
+                    // override the satate of the current token,
+                    self.current_token = new_current_token;
                 }
 
-                const batched_asterisk = try batchAsterisk(self, asterisk_run);
-                defer self.allocator.free(batched_asterisk);
-
-                self.NodeBuffer = &container_node;
-                const node = try recureiveAsteriskParse(self, batched_asterisk);
-
-                try self.nextToken();
                 return node;
             }
 
+            // If not closing delimiter, continue to parse recursively.
             const inline_node = try self.parseInline();
-            try container_node.children.append(inline_node);
+            try contentBuf.append(inline_node);
         }
-    } else {
-        container_node.content = self.current_token.literal;
-        try self.nextToken();
+    }
+    // If it reaches here, then no closing node found.
+    // Just return a plain text node.
+    var text_node = ASTNode.init(self.allocator, NodeType.text);
+
+    for (contentBuf.items) |item| {
+        try text_node.children.append(item);
     }
 
-    return container_node;
+    var remaining_node = ASTNode.init(self.allocator, NodeType.text);
+    remaining_node.content = open_delim.literal[0..open_delim_len];
+
+    try text_node.children.insert(0, remaining_node);
+
+    try self.nextToken();
+    return text_node;
 }
 
-fn can_open(self: *Parser) bool {
+fn isAlphaNumOrPunct(char: u8) bool {
+    return std.ascii.isAlphanumeric(char) or isAsciiPunctuation(char);
+}
+
+fn isAsciiPunctuation(c: u8) bool {
+    return switch (c) {
+        '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?', '@', '[', '\\', ']', '^', '_', '`', '{', '|', '}', '~' => true,
+        else => false,
+    };
+}
+
+pub fn can_open(self: *Parser) bool {
     const behind = self.prev_token;
     const ahead = self.peek_token;
 
-    if (ahead.type == TokenType.EOF or ahead.type == TokenType.newLine) {
-        return false;
-    }
+    const behind_char = if (behind.literal.len > 0) behind.literal[behind.literal.len - 1] else 0;
+    const ahead_char = if (ahead.literal.len > 0) ahead.literal[0] else 0;
 
-    const ahead_has_char = ahead.literal.len > 0;
-    const behind_has_char = behind.literal.len > 0;
+    const precededByWhitespace = behind.type == TokenType.EOF or isWhitespace(behind_char);
+    const followedByWhitespace = ahead.type == TokenType.EOF or isWhitespace(ahead_char);
 
-    if (behind.type != TokenType.EOF and behind.type != TokenType.newLine) {
-        const last_behind_char = if (behind_has_char) behind.literal[behind.literal.len - 1] else 0;
-        return ahead_has_char and ahead.literal[0] != ' ' and last_behind_char == ' ';
-    } else {
-        return ahead_has_char and ahead.literal[0] != ' ';
-    }
+    const followedByPunct = isAsciiPunctuation(ahead_char);
+
+    const leftFlanking = !followedByWhitespace and !(followedByPunct and !precededByWhitespace);
+
+    return leftFlanking;
 }
 
-fn can_close(self: *Parser) bool {
+pub fn can_close(self: *Parser) bool {
     const behind = self.prev_token;
     const ahead = self.peek_token;
 
-    if (behind.type == TokenType.EOF or behind.type == TokenType.newLine) {
-        return false;
-    }
+    const behind_char = if (behind.literal.len > 0) behind.literal[behind.literal.len - 1] else 0;
+    const ahead_char = if (ahead.literal.len > 0) ahead.literal[0] else 0;
 
-    if (ahead.type == TokenType.EOF) {
-        return true;
-    }
+    const precededByWhitespace = behind.type == TokenType.EOF or isWhitespace(behind_char);
+    const followedByWhitespace = ahead.type == TokenType.EOF or isWhitespace(ahead_char);
 
-    const ahead_has_char = ahead.literal.len > 0;
-    const behind_has_char = behind.literal.len > 0;
+    const precededByPunct = isAsciiPunctuation(behind_char);
 
-    if (ahead.type != TokenType.EOF and ahead.type != TokenType.newLine) {
-        const last_behind_char = if (behind_has_char) behind.literal[behind.literal.len - 1] else 0;
-        return ahead_has_char and ahead.literal[0] == ' ' and last_behind_char != ' ';
-    } else {
-        return ahead_has_char and ahead.literal[0] == ' ';
-    }
+    const rightFlanking = !precededByWhitespace and !(precededByPunct and !followedByWhitespace);
+
+    return rightFlanking;
 }

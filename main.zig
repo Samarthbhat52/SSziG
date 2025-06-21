@@ -10,9 +10,8 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    // const input = "properly formatted **bold** with *italic*";
-    // const input = "## Header with *italic and **bold** text to show*";
-    const input = "some **just strong** and ** other";
+    const input = "## *italic and **strong***";
+    std.log.debug("some text: '{s}'", .{input});
     var lex = lexer.Lexer.init(input, allocator);
     defer lex.deinit();
 
@@ -33,6 +32,5 @@ pub fn main() !void {
 
     defer allocator.free(html);
 
-    std.log.debug("some text: '{s}'", .{input});
     std.log.debug("'{s}'", .{html});
 }

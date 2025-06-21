@@ -46,22 +46,6 @@ pub const ASTNode = struct {
     }
 };
 
-// const delimiter = struct {
-//     type: TokenType,
-//     len: usize,
-//     can_open: bool,
-//     can_close: bool,
-// };
-//
-// fn peekStack(stack: *ArrayList(delimiter)) ?delimiter {
-//     const stack_len = stack.items.len;
-//     if (stack_len > 0) {
-//         return stack.items[stack_len - 1];
-//     }
-//
-//     return null;
-// }
-
 pub const Parser = struct {
     lexer: *Lexer,
     current_token: Token,
