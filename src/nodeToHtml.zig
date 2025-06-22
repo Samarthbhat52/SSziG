@@ -1,8 +1,8 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-const ASTNode = @import("parser.zig").ASTNode;
-const NodeType = @import("parser.zig").NodeType;
+const ASTNode = @import("./parser/ast.zig").ASTNode;
+const NodeType = @import("./parser/ast.zig").NodeType;
 
 pub const Html = struct {
     allocator: Allocator,
@@ -63,6 +63,11 @@ pub const Html = struct {
                 try output.appendSlice("</h");
                 try output.appendSlice(&[_]u8{'0' + level});
                 try output.appendSlice(">");
+            },
+            NodeType.container => {
+                for (node.children.items) |child| {
+                    try self.generateNode(output, child);
+                }
             },
             else => {
                 if (node.content) |content| {

@@ -1,0 +1,187 @@
+const std = @import("std");
+
+// Group related imports
+const parser = @import("./parser.zig");
+const ast = @import("./ast.zig");
+const token = @import("../token.zig");
+const delim_rules = @import("../utils/delim_rules.zig");
+
+// Create local aliases for frequently used types
+const Parser = parser.Parser;
+const NodeType = ast.NodeType;
+const ASTNode = ast.ASTNode;
+const ParseError = ast.ParseError;
+const TokenType = token.TokenType;
+const Token = token.Token;
+const ArrayList = std.ArrayList;
+
+const DelimiterInfo = struct {
+    token: Token,
+    length: usize,
+    can_open: bool,
+    can_close: bool,
+};
+
+const ParseResult = struct {
+    node: ASTNode,
+    remaining_open_length: usize,
+    remaining_close_length: usize,
+};
+
+fn createDelimiterInfo(self: *Parser, tok: Token) DelimiterInfo {
+    return DelimiterInfo{
+        .token = tok,
+        .length = tok.literal.len,
+        .can_open = delim_rules.can_open(self.prev_token, self.peek_token),
+        .can_close = delim_rules.can_close(self.prev_token, self.peek_token),
+    };
+}
+
+fn createNodeFromDelimiterSize(allocator: std.mem.Allocator, delim_size: usize) ASTNode {
+    const node_type = if (delim_size == 2) NodeType.bold else NodeType.italic;
+    return ASTNode.init(allocator, node_type);
+}
+
+fn recursiveAsteriskParse(self: *Parser, consume_count: usize, content_buf: ArrayList(ASTNode)) ParseError!ASTNode {
+    const delim_size: usize = if (consume_count >= 2) 2 else 1;
+    var node = createNodeFromDelimiterSize(self.allocator, delim_size);
+
+    const new_consume_count = consume_count - delim_size;
+
+    if (new_consume_count == 0) {
+        // Base case: append all content to this node
+        for (content_buf.items) |item| {
+            try node.children.append(item);
+        }
+        return node;
+    }
+
+    // Recursive case: create child node with remaining consume count
+    const children_node = try recursiveAsteriskParse(self, new_consume_count, content_buf);
+    try node.children.append(children_node);
+
+    return node;
+}
+
+fn handleClosingDelimiter(
+    self: *Parser,
+    content_buf: *ArrayList(ASTNode),
+    open_delim_info: *DelimiterInfo,
+    close_delim_info: DelimiterInfo,
+) ParseError!?struct { node: ?ASTNode, remaining_close_delim: ?DelimiterInfo } {
+    const consume_count = @min(open_delim_info.length, close_delim_info.length);
+    const node = try recursiveAsteriskParse(self, consume_count, content_buf.*);
+
+    open_delim_info.length -= consume_count;
+    const remaining_close_length = close_delim_info.length - consume_count;
+
+    // If we still have opening delimiters left, continue parsing
+    if (open_delim_info.length > 0) {
+        content_buf.clearRetainingCapacity();
+        try content_buf.append(node);
+        try self.nextToken();
+        return .{ .node = null, .remaining_close_delim = null }; // Continue parsing
+    }
+
+    // Create remaining close delimiter info if any
+    var remaining_close_delim: ?DelimiterInfo = null;
+    if (remaining_close_length > 0) {
+        const new_literal = close_delim_info.token.literal[0..remaining_close_length];
+        remaining_close_delim = DelimiterInfo{
+            .token = Token.newToken(TokenType.asterisk, new_literal),
+            .length = remaining_close_length,
+            .can_open = false,
+            .can_close = false,
+        };
+        self.current_token = remaining_close_delim.?.token;
+    }
+
+    try self.nextToken();
+    return .{ .node = node, .remaining_close_delim = remaining_close_delim };
+}
+
+fn createFallbackTextNode(
+    allocator: std.mem.Allocator,
+    content_buf: ArrayList(ASTNode),
+    open_delim_info: DelimiterInfo,
+    close_delim_info: ?DelimiterInfo,
+) ParseError!ASTNode {
+    var container_node = ASTNode.init(allocator, NodeType.container);
+
+    // Add remaining opening delimiter as text if any
+    if (open_delim_info.length > 0) {
+        var remaining_node = ASTNode.init(allocator, NodeType.text);
+        remaining_node.content = open_delim_info.token.literal[0..open_delim_info.length];
+        try container_node.children.insert(0, remaining_node);
+    }
+
+    // Add all parsed content
+    for (content_buf.items) |item| {
+        try container_node.children.append(item);
+    }
+
+    // Add remaining closing delimiter as text if any
+    if (close_delim_info) |close_info| {
+        if (close_info.length > 0) {
+            var remaining_close_node = ASTNode.init(allocator, NodeType.text);
+            remaining_close_node.content = close_info.token.literal[0..close_info.length];
+            try container_node.children.append(remaining_close_node);
+        }
+    }
+
+    return container_node;
+}
+
+pub fn parseAsterisk(self: *Parser) ParseError!ASTNode {
+    var content_buf = ArrayList(ASTNode).init(self.allocator);
+    defer content_buf.deinit();
+
+    var open_delim_info = createDelimiterInfo(self, self.current_token);
+
+    if (!open_delim_info.can_open) {
+        // Cannot open here, treat as regular text
+        try self.nextToken();
+        return createFallbackTextNode(self.allocator, content_buf, open_delim_info, null);
+    }
+
+    try self.nextToken();
+    const last_remaining_close_delim: ?DelimiterInfo = null;
+
+    // Main parsing loop
+    while (self.current_token.type != TokenType.EOF and
+        self.current_token.type != TokenType.newLine)
+    {
+        if (self.current_token.type == TokenType.asterisk) {
+            const close_delim_info = createDelimiterInfo(self, self.current_token);
+
+            if (close_delim_info.can_close) {
+                const result = try handleClosingDelimiter(self, &content_buf, &open_delim_info, close_delim_info);
+                if (result.?.node) |node| {
+                    // Successfully parsed, but we might have remaining close delimiters
+                    if (result.?.remaining_close_delim) |remaining| {
+                        // Create a container to hold the parsed node + remaining delimiters
+                        var container = ASTNode.init(self.allocator, NodeType.container);
+                        try container.children.append(node);
+
+                        var remaining_text_node = ASTNode.init(self.allocator, NodeType.text);
+                        remaining_text_node.content = remaining.token.literal;
+                        try container.children.append(remaining_text_node);
+
+                        return container;
+                    }
+                    return node;
+                }
+                // Continue parsing if we have remaining open delimiters
+                continue;
+            }
+        }
+
+        // Parse inline content
+        const inline_node = try self.parseInline();
+        try content_buf.append(inline_node);
+    }
+
+    // No closing delimiter found, return as plain text
+    try self.nextToken();
+    return createFallbackTextNode(self.allocator, content_buf, open_delim_info, last_remaining_close_delim);
+}

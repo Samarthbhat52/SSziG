@@ -1,7 +1,6 @@
 const std = @import("std");
-const lexer = @import("src/lexer.zig");
-const tokenType = @import("src/token.zig").TokenType;
-const parser = @import("src/parser.zig");
+const Lexer = @import("src/lexer.zig").Lexer;
+const Parser = @import("src/parser/parser.zig").Parser;
 const htmlGenerator = @import("src/nodeToHtml.zig").Html;
 
 pub fn main() !void {
@@ -10,19 +9,12 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    const input = "## *italic and **strong***";
+    const input = "**italic*** and word";
     std.log.debug("some text: '{s}'", .{input});
-    var lex = lexer.Lexer.init(input, allocator);
+    var lex = Lexer.init(input, allocator);
     defer lex.deinit();
 
-    // var tok = try lex.nextToken();
-    //
-    // while (tok.type != tokenType.EOF) {
-    //     std.log.info("type: {s}, token: '{s}'", .{ @tagName(tok.type), tok.literal });
-    //     tok = try lex.nextToken();
-    // }
-
-    var p = try parser.Parser.init(allocator, &lex);
+    var p = try Parser.init(allocator, &lex);
 
     var document = try p.parse();
     defer document.deinit();
