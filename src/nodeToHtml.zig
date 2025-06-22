@@ -25,7 +25,6 @@ pub const Html = struct {
             NodeType.document => {
                 for (node.children.items) |child| {
                     try self.generateNode(output, child);
-                    try output.appendSlice("\n");
                 }
             },
             NodeType.paragraph => {

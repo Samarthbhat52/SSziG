@@ -1,8 +1,12 @@
-const Parser = @import("./parser.zig").Parser;
-const ParseError = @import("./ast.zig").ParseError;
-const ASTNode = @import("./ast.zig").ASTNode;
-const NodeType = @import("./ast.zig").NodeType;
-const TokenType = @import("../token.zig").TokenType;
+const parser = @import("./parser.zig");
+const ast = @import("./ast.zig");
+const token = @import("../lexer/token.zig");
+
+const Parser = parser.Parser;
+const ParseError = ast.ParseError;
+const ASTNode = ast.ASTNode;
+const NodeType = ast.NodeType;
+const TokenType = token.TokenType;
 
 pub fn parseHeader(self: *Parser, level: u8) ParseError!ASTNode {
     var header_node = ASTNode.init(self.allocator, NodeType.header);

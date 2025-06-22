@@ -1,6 +1,6 @@
 const std = @import("std");
-const token = @import("token.zig").Token;
-const tokenType = @import("token.zig").TokenType;
+const token = @import("./token.zig").Token;
+const tokenType = @import("./token.zig").TokenType;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 

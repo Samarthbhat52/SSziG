@@ -1,7 +1,11 @@
+//! By convention, main.zig is where your main function lives in the case that
+//! you are building an executable. If you are making a library, the convention
+//! is to delete this file and start with root.zig instead.
+
 const std = @import("std");
-const Lexer = @import("src/lexer.zig").Lexer;
-const Parser = @import("src/parser/parser.zig").Parser;
-const htmlGenerator = @import("src/nodeToHtml.zig").Html;
+const Lexer = @import("./lexer/lexer.zig").Lexer;
+const Parser = @import("./parser/parser.zig").Parser;
+const htmlGenerator = @import("./nodeToHtml.zig").Html;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -9,7 +13,7 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    const input = "**italic*** and word";
+    const input = "*****some random*** sentence**";
     std.log.debug("some text: '{s}'", .{input});
     var lex = Lexer.init(input, allocator);
     defer lex.deinit();

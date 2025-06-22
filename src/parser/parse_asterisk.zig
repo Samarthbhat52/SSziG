@@ -3,7 +3,7 @@ const std = @import("std");
 // Group related imports
 const parser = @import("./parser.zig");
 const ast = @import("./ast.zig");
-const token = @import("../token.zig");
+const token = @import("../lexer/token.zig");
 const delim_rules = @import("../utils/delim_rules.zig");
 
 // Create local aliases for frequently used types

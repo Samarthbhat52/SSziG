@@ -1,13 +1,19 @@
 const std = @import("std");
-const Lexer = @import("../lexer.zig").Lexer;
-const Token = @import("../token.zig").Token;
-const TokenType = @import("../token.zig").TokenType;
-const ASTNode = @import("../parser/ast.zig").ASTNode;
-const NodeType = @import("../parser/ast.zig").NodeType;
-const ParseError = @import("../parser/ast.zig").ParseError;
+const ArrayList = std.ArrayList;
+const Allocator = std.mem.Allocator;
+
+const ast = @import("./ast.zig");
+const token = @import("../lexer/token.zig");
+const lex = @import("../lexer/lexer.zig");
+
+const Lexer = lex.Lexer;
+const NodeType = ast.NodeType;
+const ASTNode = ast.ASTNode;
+const ParseError = ast.ParseError;
+const TokenType = token.TokenType;
+const Token = token.Token;
 const parseHeader = @import("./parse_header.zig").parseHeader;
 const parseAsterisk = @import("./parse_asterisk.zig").parseAsterisk;
-const Allocator = std.mem.Allocator;
 
 pub const Parser = struct {
     lexer: *Lexer,
