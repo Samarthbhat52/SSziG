@@ -5,7 +5,7 @@
 const std = @import("std");
 const Lexer = @import("./lexer/lexer.zig").Lexer;
 const Parser = @import("./parser/parser.zig").Parser;
-const htmlGenerator = @import("./nodeToHtml.zig").Html;
+const Html = @import("./nodeToHtml.zig").Html;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -13,17 +13,16 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    const input = "*****some random*** sentence**";
+    const input = "    # main header";
     std.log.debug("some text: '{s}'", .{input});
-    var lex = Lexer.init(input, allocator);
-    defer lex.deinit();
+    var lex = Lexer.init(input);
 
     var p = try Parser.init(allocator, &lex);
 
     var document = try p.parse();
     defer document.deinit();
 
-    var generator = htmlGenerator.init(allocator);
+    var generator = Html.init(allocator);
     const html = try generator.generateHtml(document);
 
     defer allocator.free(html);

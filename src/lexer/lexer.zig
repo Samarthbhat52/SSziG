@@ -1,6 +1,6 @@
 const std = @import("std");
-const token = @import("./token.zig").Token;
-const tokenType = @import("./token.zig").TokenType;
+const Token = @import("./token.zig").Token;
+const TokenType = @import("./token.zig").TokenType;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
@@ -55,24 +55,15 @@ pub const Lexer = struct {
     readPosition: usize,
     col: usize,
     input: []const u8,
-    delim_stack: ArrayList(tokenType),
 
-    pub fn init(input: []const u8, allocator: Allocator) Lexer {
-        var delim_stack = ArrayList(tokenType).init(allocator);
-        errdefer delim_stack.deinit();
-
+    pub fn init(input: []const u8) Lexer {
         return .{
             .ch = input[0],
             .position = 0,
             .col = 0,
             .readPosition = 1,
             .input = input,
-            .delim_stack = delim_stack,
         };
-    }
-
-    pub fn deinit(l: *Lexer) void {
-        l.delim_stack.deinit();
     }
 
     // Consumes a character
@@ -118,25 +109,25 @@ pub const Lexer = struct {
         return l.input[start_position..l.position];
     }
 
-    pub fn nextToken(l: *Lexer) !token {
-        var tok: token = undefined;
+    pub fn nextToken(l: *Lexer) !Token {
+        var tok: Token = undefined;
 
         switch (l.ch) {
             '\n' => {
-                tok = token.newToken(tokenType.newLine, "newline");
+                tok = Token.newToken(TokenType.newLine, "newline");
             },
             '#' => {
                 tok = handleHeader(l);
             },
             '*' => {
                 const asterisk = getDelimiterRun(l, '*');
-                tok = token.newToken(tokenType.asterisk, asterisk);
+                tok = Token.newToken(TokenType.asterisk, asterisk);
             },
-            0 => tok = token.newToken(tokenType.EOF, "EOF"),
+            0 => tok = Token.newToken(TokenType.EOF, "EOF"),
             else => {
                 const content = l.getContent();
 
-                tok = token.newToken(tokenType.text, content);
+                tok = Token.newToken(TokenType.text, content);
                 return tok;
             },
         }
@@ -146,20 +137,20 @@ pub const Lexer = struct {
     }
 };
 
-pub fn handleHeader(l: *Lexer) token {
+pub fn handleHeader(l: *Lexer) Token {
     // Headers must start at the beginning of a line
     if (l.col != 0) {
         const content = l.getContent();
-        return token.newToken(tokenType.text, content);
+        return Token.newToken(TokenType.text, content);
     }
 
     const header_literal = getDelimiterRun(l, '#');
 
     // Check if this is a valid header format
     if (!isValidHeader(header_literal, l)) {
-        return token.newToken(tokenType.text, header_literal);
+        return Token.newToken(TokenType.text, header_literal);
     }
 
     // Consume the space after the header delimiter
-    return token.newToken(tokenType.heading, header_literal);
+    return Token.newToken(TokenType.heading, header_literal);
 }
