@@ -13,7 +13,7 @@ const ParseError = ast.ParseError;
 const TokenType = token.TokenType;
 const Token = token.Token;
 const parseHeader = @import("./parse_header.zig").parseHeader;
-const parseAsterisk = @import("./parse_asterisk.zig").parseAsterisk;
+const parseDelim = @import("./parse_delimiter.zig").parseDelimiter;
 
 pub const Parser = struct {
     lexer: *Lexer,
@@ -103,7 +103,9 @@ pub const Parser = struct {
     }
 
     pub fn parseInline(self: *Parser) ParseError!ASTNode {
-        switch (self.current_token.type) {
+        const delim = self.current_token.type;
+
+        switch (delim) {
             TokenType.text => {
                 var text_node = ASTNode.init(self.allocator, NodeType.text);
                 text_node.content = self.current_token.literal;
@@ -111,8 +113,8 @@ pub const Parser = struct {
                 try self.nextToken();
                 return text_node;
             },
-            TokenType.asterisk => {
-                const ast_node = try parseAsterisk(self);
+            TokenType.asterisk, TokenType.underscore => {
+                const ast_node = try parseDelim(self, delim);
 
                 return ast_node;
             },

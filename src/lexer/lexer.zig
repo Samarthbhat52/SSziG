@@ -3,32 +3,16 @@ const Token = @import("./token.zig").Token;
 const TokenType = @import("./token.zig").TokenType;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
+const util = @import("../utils/delim_rules.zig");
+const handler = @import("./handler.zig");
 
-fn isValidHeader(header_literal: []const u8, l: *Lexer) bool {
-    // Too many '#' characters (max 6 for h1-h6)
-    if (header_literal.len > 6) return false;
-
-    // Must be followed by a space
-    if (l.peekAhead() != ' ') return false;
-
-    // If there is (are) space(s) after, consume it, We don't need it
-    eatWhiteSpaces(l);
-
-    // Check if there's actually content after the space
-    // (this seems to be what the original double-space check was doing)
-    const next_pos = l.position + 1;
-    if (next_pos < l.input.len and l.input[next_pos] == ' ') return false;
-
-    return true;
-}
-
-fn eatWhiteSpaces(l: *Lexer) void {
+pub fn eatWhiteSpaces(l: *Lexer) void {
     while (l.peekAhead() == ' ') {
         l.readChar();
     }
 }
 
-fn getDelimiterRun(l: *Lexer, delim: u8) []const u8 {
+pub fn getDelimiterRun(l: *Lexer, delim: u8) []const u8 {
     const position = l.position;
 
     while (l.peekAhead() == delim) {
@@ -36,17 +20,6 @@ fn getDelimiterRun(l: *Lexer, delim: u8) []const u8 {
     }
 
     return l.input[position..l.readPosition];
-}
-
-fn isValidChar(ch: u8) bool {
-    const stop_chars = [_]u8{ '*', '`', '[', ']', ')', '\n', 0 };
-    for (stop_chars) |c| {
-        if (ch == c) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 pub const Lexer = struct {
@@ -67,7 +40,7 @@ pub const Lexer = struct {
     }
 
     // Consumes a character
-    fn readChar(l: *Lexer) void {
+    pub fn readChar(l: *Lexer) void {
         if (l.ch == 0 and l.position >= l.input.len) { // Check position to be sure it's actual EOF state
             return;
         }
@@ -91,7 +64,7 @@ pub const Lexer = struct {
     }
 
     // looks ahead without consuming a character
-    fn peekAhead(l: *Lexer) u8 {
+    pub fn peekAhead(l: *Lexer) u8 {
         if (l.position == l.input.len - 1) {
             return 0;
         }
@@ -100,9 +73,9 @@ pub const Lexer = struct {
     }
 
     // all the characters till a non-valid character is found
-    fn getContent(l: *Lexer) []const u8 {
+    pub fn getContent(l: *Lexer) []const u8 {
         const start_position = l.position;
-        while (isValidChar(l.ch)) {
+        while (util.isValidChar(l.ch)) {
             l.readChar();
         }
 
@@ -117,11 +90,15 @@ pub const Lexer = struct {
                 tok = Token.newToken(TokenType.newLine, "newline");
             },
             '#' => {
-                tok = handleHeader(l);
+                tok = handler.handleHeader(l);
             },
             '*' => {
-                const asterisk = getDelimiterRun(l, '*');
-                tok = Token.newToken(TokenType.asterisk, asterisk);
+                const delim = getDelimiterRun(l, l.ch);
+                tok = Token.newToken(TokenType.asterisk, delim);
+            },
+            '_' => {
+                const delim = getDelimiterRun(l, l.ch);
+                tok = Token.newToken(TokenType.underscore, delim);
             },
             0 => tok = Token.newToken(TokenType.EOF, "EOF"),
             else => {
@@ -136,21 +113,3 @@ pub const Lexer = struct {
         return tok;
     }
 };
-
-pub fn handleHeader(l: *Lexer) Token {
-    // Headers must start at the beginning of a line
-    if (l.col != 0) {
-        const content = l.getContent();
-        return Token.newToken(TokenType.text, content);
-    }
-
-    const header_literal = getDelimiterRun(l, '#');
-
-    // Check if this is a valid header format
-    if (!isValidHeader(header_literal, l)) {
-        return Token.newToken(TokenType.text, header_literal);
-    }
-
-    // Consume the space after the header delimiter
-    return Token.newToken(TokenType.heading, header_literal);
-}

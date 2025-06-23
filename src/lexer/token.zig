@@ -5,6 +5,9 @@ pub const TokenType = enum {
     heading,
     quote,
     asterisk,
+    underscore,
+    tilde,
+    caret,
 };
 
 pub const Token = struct {

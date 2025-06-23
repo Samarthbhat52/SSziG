@@ -37,14 +37,20 @@ fn createDelimiterInfo(self: *Parser, tok: Token) DelimiterInfo {
     };
 }
 
-fn createNodeFromDelimiterSize(allocator: std.mem.Allocator, delim_size: usize) ASTNode {
-    const node_type = if (delim_size == 2) NodeType.bold else NodeType.italic;
+fn createNodeFromDelimiterSize(allocator: std.mem.Allocator, delim_size: usize, delim: TokenType) ASTNode {
+    const node_type = switch (delim) {
+        TokenType.asterisk, TokenType.underscore => if (delim_size == 2) NodeType.bold else NodeType.italic,
+        TokenType.tilde => if (delim_size == 2) NodeType.strikethrough else NodeType.sub,
+        TokenType.caret => if (delim_size == 2) NodeType.text else NodeType.sup,
+        else => NodeType.text,
+    };
+
     return ASTNode.init(allocator, node_type);
 }
 
-fn recursiveAsteriskParse(self: *Parser, consume_count: usize, content_buf: ArrayList(ASTNode)) ParseError!ASTNode {
+fn recursiveDelimiterParse(self: *Parser, consume_count: usize, content_buf: ArrayList(ASTNode), delim: TokenType) ParseError!ASTNode {
     const delim_size: usize = if (consume_count >= 2) 2 else 1;
-    var node = createNodeFromDelimiterSize(self.allocator, delim_size);
+    var node = createNodeFromDelimiterSize(self.allocator, delim_size, delim);
 
     const new_consume_count = consume_count - delim_size;
 
@@ -57,7 +63,7 @@ fn recursiveAsteriskParse(self: *Parser, consume_count: usize, content_buf: Arra
     }
 
     // Recursive case: create child node with remaining consume count
-    const children_node = try recursiveAsteriskParse(self, new_consume_count, content_buf);
+    const children_node = try recursiveDelimiterParse(self, new_consume_count, content_buf, delim);
     try node.children.append(children_node);
 
     return node;
@@ -70,7 +76,7 @@ fn handleClosingDelimiter(
     close_delim_info: DelimiterInfo,
 ) ParseError!?struct { node: ?ASTNode, remaining_close_delim: ?DelimiterInfo } {
     const consume_count = @min(open_delim_info.length, close_delim_info.length);
-    const node = try recursiveAsteriskParse(self, consume_count, content_buf.*);
+    const node = try recursiveDelimiterParse(self, consume_count, content_buf.*, close_delim_info.token.type);
 
     open_delim_info.length -= consume_count;
     const remaining_close_length = close_delim_info.length - consume_count;
@@ -88,7 +94,7 @@ fn handleClosingDelimiter(
     if (remaining_close_length > 0) {
         const new_literal = close_delim_info.token.literal[0..remaining_close_length];
         remaining_close_delim = DelimiterInfo{
-            .token = Token.newToken(TokenType.asterisk, new_literal),
+            .token = Token.newToken(close_delim_info.token.type, new_literal),
             .length = remaining_close_length,
             .can_open = false,
             .can_close = false,
@@ -132,7 +138,7 @@ fn createFallbackTextNode(
     return container_node;
 }
 
-pub fn parseAsterisk(self: *Parser) ParseError!ASTNode {
+pub fn parseDelimiter(self: *Parser, delim: TokenType) ParseError!ASTNode {
     var content_buf = ArrayList(ASTNode).init(self.allocator);
     defer content_buf.deinit();
 
@@ -151,7 +157,7 @@ pub fn parseAsterisk(self: *Parser) ParseError!ASTNode {
     while (self.current_token.type != TokenType.EOF and
         self.current_token.type != TokenType.newLine)
     {
-        if (self.current_token.type == TokenType.asterisk) {
+        if (self.current_token.type == delim) {
             const close_delim_info = createDelimiterInfo(self, self.current_token);
 
             if (close_delim_info.can_close) {

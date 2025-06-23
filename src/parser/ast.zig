@@ -10,6 +10,9 @@ pub const NodeType = enum {
     bold,
     italic,
     header,
+    strikethrough,
+    sub,
+    sup,
 };
 
 pub const ASTNode = struct {
