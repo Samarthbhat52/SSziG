@@ -41,7 +41,7 @@ fn createNodeFromDelimiterSize(allocator: std.mem.Allocator, delim_size: usize, 
     const node_type = switch (delim) {
         TokenType.asterisk, TokenType.underscore => if (delim_size == 2) NodeType.bold else NodeType.italic,
         TokenType.tilde => if (delim_size == 2) NodeType.strikethrough else NodeType.sub,
-        TokenType.caret => if (delim_size == 2) NodeType.text else NodeType.sup,
+        TokenType.caret => if (delim_size == 2) NodeType.container else NodeType.sup,
         else => NodeType.text,
     };
 

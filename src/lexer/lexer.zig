@@ -87,24 +87,32 @@ pub const Lexer = struct {
 
         switch (l.ch) {
             '\n' => {
-                tok = Token.newToken(TokenType.newLine, "newline");
+                tok = Token.newToken(.newLine, "newline");
             },
             '#' => {
                 tok = handler.handleHeader(l);
             },
             '*' => {
                 const delim = getDelimiterRun(l, l.ch);
-                tok = Token.newToken(TokenType.asterisk, delim);
+                tok = Token.newToken(.asterisk, delim);
             },
             '_' => {
                 const delim = getDelimiterRun(l, l.ch);
-                tok = Token.newToken(TokenType.underscore, delim);
+                tok = Token.newToken(.underscore, delim);
             },
-            0 => tok = Token.newToken(TokenType.EOF, "EOF"),
+            '~' => {
+                const delim = getDelimiterRun(l, l.ch);
+                tok = Token.newToken(.tilde, delim);
+            },
+            '^' => {
+                const delim = getDelimiterRun(l, l.ch);
+                tok = Token.newToken(.caret, delim);
+            },
+            0 => tok = Token.newToken(.EOF, "EOF"),
             else => {
                 const content = l.getContent();
 
-                tok = Token.newToken(TokenType.text, content);
+                tok = Token.newToken(.text, content);
                 return tok;
             },
         }

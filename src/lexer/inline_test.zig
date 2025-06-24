@@ -25,3 +25,26 @@ test "inline bold and italic" {
         try std.testing.expectEqualStrings(exp.literal, tok.literal);
     }
 }
+
+test "inline underscore delimeter" {
+    const input = "sentence with __bold__ and _italic_";
+
+    var l = Lexer.init(input);
+
+    const expected = [_]Token{
+        Token{ .type = TokenType.text, .literal = "sentence with " },
+        Token{ .type = TokenType.underscore, .literal = "__" },
+        Token{ .type = TokenType.text, .literal = "bold" },
+        Token{ .type = TokenType.underscore, .literal = "__" },
+        Token{ .type = TokenType.text, .literal = " and " },
+        Token{ .type = TokenType.underscore, .literal = "_" },
+        Token{ .type = TokenType.text, .literal = "italic" },
+        Token{ .type = TokenType.underscore, .literal = "_" },
+    };
+
+    for (expected) |exp| {
+        const tok = try l.nextToken();
+        try std.testing.expectEqual(exp.type, tok.type);
+        try std.testing.expectEqualStrings(exp.literal, tok.literal);
+    }
+}

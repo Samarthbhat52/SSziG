@@ -14,7 +14,7 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    const input = "something *__bold__ and italic_";
+    const input = "testing ~~~superscript some text~~ ^superscrit^~ tag";
     std.log.debug("some text: '{s}'", .{input});
     var lex = Lexer.init(input);
 

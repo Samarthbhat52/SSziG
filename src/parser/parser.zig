@@ -113,7 +113,11 @@ pub const Parser = struct {
                 try self.nextToken();
                 return text_node;
             },
-            TokenType.asterisk, TokenType.underscore => {
+            TokenType.asterisk,
+            TokenType.underscore,
+            TokenType.tilde,
+            TokenType.caret,
+            => {
                 const ast_node = try parseDelim(self, delim);
 
                 return ast_node;

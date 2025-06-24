@@ -22,33 +22,35 @@ pub const Html = struct {
 
     fn generateNode(self: *Html, output: *ArrayList(u8), node: ASTNode) !void {
         switch (node.type) {
-            NodeType.document => {
+            .document => {
+                try output.appendSlice("<div>");
                 for (node.children.items) |child| {
                     try self.generateNode(output, child);
                 }
+                try output.appendSlice("</div>");
             },
-            NodeType.paragraph => {
+            .paragraph => {
                 try output.appendSlice("<p>");
                 for (node.children.items) |child| {
                     try self.generateNode(output, child);
                 }
                 try output.appendSlice("</p>");
             },
-            NodeType.italic => {
+            .italic => {
                 try output.appendSlice("<em>");
                 for (node.children.items) |child| {
                     try self.generateNode(output, child);
                 }
                 try output.appendSlice("</em>");
             },
-            NodeType.bold => {
+            .bold => {
                 try output.appendSlice("<strong>");
                 for (node.children.items) |child| {
                     try self.generateNode(output, child);
                 }
                 try output.appendSlice("</strong>");
             },
-            NodeType.header => {
+            .header => {
                 const level = node.header_level orelse 1;
 
                 try output.appendSlice("<h");
@@ -63,7 +65,28 @@ pub const Html = struct {
                 try output.appendSlice(&[_]u8{'0' + level});
                 try output.appendSlice(">");
             },
-            NodeType.container => {
+            .strikethrough => {
+                try output.appendSlice("<s>");
+                for (node.children.items) |child| {
+                    try self.generateNode(output, child);
+                }
+                try output.appendSlice("</s>");
+            },
+            .sub => {
+                try output.appendSlice("<sub>");
+                for (node.children.items) |child| {
+                    try self.generateNode(output, child);
+                }
+                try output.appendSlice("</sub>");
+            },
+            .sup => {
+                try output.appendSlice("<sup>");
+                for (node.children.items) |child| {
+                    try self.generateNode(output, child);
+                }
+                try output.appendSlice("</sup>");
+            },
+            .container => {
                 for (node.children.items) |child| {
                     try self.generateNode(output, child);
                 }
