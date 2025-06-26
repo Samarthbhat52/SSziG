@@ -1,3 +1,4 @@
+const std = @import("std");
 const lexer = @import("./lexer.zig");
 const token = @import("./token.zig");
 const tokenType = @import("./token.zig");
@@ -27,7 +28,7 @@ fn isValidHeader(header_literal: []const u8, l: *Lexer) bool {
 pub fn handleHeader(l: *Lexer) Token {
     // Headers must start at the beginning of a line
     if (l.col != 0) {
-        const content = l.getContent();
+        const content = l.getValidContent();
         return Token.newToken(TokenType.text, content);
     }
 
@@ -40,4 +41,44 @@ pub fn handleHeader(l: *Lexer) Token {
 
     // Consume the space after the header delimiter
     return Token.newToken(TokenType.heading, header_literal);
+}
+
+pub fn handleInlineBacktick(l: *Lexer, delim: []const u8) Token {
+    // Search for closing delim.
+    var i = l.position + 1;
+    var found = false;
+
+    while (i < l.input.len and l.input[i] != '\n') {
+        if (l.input[i] == '`') {
+            var k: usize = i;
+            var len: usize = 0;
+
+            while (k < l.input.len and l.input[k] == '`') : (k += 1) {
+                len += 1;
+            }
+
+            if (len == 1) {
+                found = true;
+                break;
+            }
+
+            i += len;
+            continue;
+        }
+
+        i += 1;
+    }
+
+    if (!found) {
+        return Token.newToken(.text, delim);
+    }
+
+    const content = l.input[l.position + 1 .. i];
+
+    // consume all the characters between start and closing block
+    while (l.position < i) {
+        l.readChar();
+    }
+
+    return Token.newToken(.code, content);
 }

@@ -8,6 +8,8 @@ pub const TokenType = enum {
     underscore,
     tilde,
     caret,
+    code,
+    codeblock,
 };
 
 pub const Token = struct {

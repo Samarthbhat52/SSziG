@@ -4,6 +4,7 @@ const Allocator = std.mem.Allocator;
 
 pub const NodeType = enum {
     container,
+    newLine,
     document,
     paragraph,
     text,
@@ -13,6 +14,8 @@ pub const NodeType = enum {
     strikethrough,
     sub,
     sup,
+    code,
+    codeblock,
 };
 
 pub const ASTNode = struct {

@@ -14,7 +14,11 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    const input = "testing ~~~superscript some text~~ ^superscrit^~ tag";
+    // const input = "Time to test ^superscript text^ and also test ^formatting ~~***inside the***~~ superscript^, 2^14^ karma gets you in the arcanum.";
+    // const input = "*****some random** *sentence**";
+    // const input = "***please** work*";
+    const input = "sentence with `code some more **text** ```codeblock too```` block";
+
     std.log.debug("some text: '{s}'", .{input});
     var lex = Lexer.init(input);
 

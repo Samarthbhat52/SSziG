@@ -73,9 +73,18 @@ pub const Lexer = struct {
     }
 
     // all the characters till a non-valid character is found
-    pub fn getContent(l: *Lexer) []const u8 {
+    pub fn getValidContent(l: *Lexer) []const u8 {
         const start_position = l.position;
         while (util.isValidChar(l.ch)) {
+            l.readChar();
+        }
+
+        return l.input[start_position..l.position];
+    }
+
+    pub fn getContentTill(l: *Lexer, delim: u8) []const u8 {
+        const start_position = l.position;
+        while (l.ch != delim) {
             l.readChar();
         }
 
@@ -87,7 +96,7 @@ pub const Lexer = struct {
 
         switch (l.ch) {
             '\n' => {
-                tok = Token.newToken(.newLine, "newline");
+                tok = Token.newToken(.newLine, "\n");
             },
             '#' => {
                 tok = handler.handleHeader(l);
@@ -106,11 +115,18 @@ pub const Lexer = struct {
             },
             '^' => {
                 const delim = getDelimiterRun(l, l.ch);
-                tok = Token.newToken(.caret, delim);
+                const token_type = if (delim.len == 1) TokenType.caret else TokenType.text;
+
+                tok = Token.newToken(token_type, delim);
+            },
+            '`' => {
+                const delim = getDelimiterRun(l, l.ch);
+
+                tok = if (delim.len == 1) handler.handleInlineBacktick(l, "`") else Token.newToken(.codeblock, delim);
             },
             0 => tok = Token.newToken(.EOF, "EOF"),
             else => {
-                const content = l.getContent();
+                const content = l.getValidContent();
 
                 tok = Token.newToken(.text, content);
                 return tok;

@@ -86,6 +86,14 @@ pub const Html = struct {
                 }
                 try output.appendSlice("</sup>");
             },
+            .code => {
+                try output.appendSlice("<code>");
+                if (node.content) |content| {
+                    // Probably replace some symbols with html escapes
+                    try output.appendSlice(content);
+                }
+                try output.appendSlice("</code>");
+            },
             .container => {
                 for (node.children.items) |child| {
                     try self.generateNode(output, child);
