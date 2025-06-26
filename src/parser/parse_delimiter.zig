@@ -97,13 +97,13 @@ fn handleClosingDelimiter(
             .token = Token.newToken(close_delim_info.token.type, new_literal),
             .length = remaining_close_length,
             .can_open = false,
-            .can_close = false,
+            .can_close = true,
         };
         self.current_token = remaining_close_delim.?.token;
+        return .{ .node = node, .remaining_close_delim = remaining_close_delim };
     }
 
-    try self.nextToken();
-    return .{ .node = node, .remaining_close_delim = remaining_close_delim };
+    return .{ .node = node, .remaining_close_delim = null };
 }
 
 fn createFallbackTextNode(
@@ -159,22 +159,16 @@ pub fn parseDelimiter(self: *Parser, delim: TokenType) ParseError!ASTNode {
     {
         if (self.current_token.type == delim) {
             const close_delim_info = createDelimiterInfo(self, self.current_token);
-
             if (close_delim_info.can_close) {
                 const result = try handleClosingDelimiter(self, &content_buf, &open_delim_info, close_delim_info);
+
                 if (result.?.node) |node| {
                     // Successfully parsed, but we might have remaining close delimiters
-                    if (result.?.remaining_close_delim) |remaining| {
+                    if (result.?.remaining_close_delim == null) {
                         // Create a container to hold the parsed node + remaining delimiters
-                        var container = ASTNode.init(self.allocator, NodeType.container);
-                        try container.children.append(node);
-
-                        var remaining_text_node = ASTNode.init(self.allocator, NodeType.text);
-                        remaining_text_node.content = remaining.token.literal;
-                        try container.children.append(remaining_text_node);
-
-                        return container;
+                        try self.nextToken();
                     }
+
                     return node;
                 }
                 // Continue parsing if we have remaining open delimiters

@@ -1,7 +1,6 @@
 const std = @import("std");
 const Lexer = @import("./lexer.zig").Lexer;
 const Token = @import("./token.zig").Token;
-const TokenType = @import("./token.zig").TokenType;
 
 test "proper headings" {
     const input =
@@ -15,24 +14,24 @@ test "proper headings" {
     var l = Lexer.init(input);
 
     const expected = [_]Token{
-        Token{ .type = TokenType.heading, .literal = "#" },
-        Token{ .type = TokenType.text, .literal = "Heading" },
-        Token{ .type = TokenType.newLine, .literal = "newline" },
-        Token{ .type = TokenType.heading, .literal = "##" },
-        Token{ .type = TokenType.text, .literal = "Heading two" },
-        Token{ .type = TokenType.newLine, .literal = "newline" },
-        Token{ .type = TokenType.heading, .literal = "###" },
-        Token{ .type = TokenType.text, .literal = "Heading three" },
-        Token{ .type = TokenType.newLine, .literal = "newline" },
-        Token{ .type = TokenType.heading, .literal = "####" },
-        Token{ .type = TokenType.text, .literal = "Heading four" },
-        Token{ .type = TokenType.newLine, .literal = "newline" },
-        Token{ .type = TokenType.heading, .literal = "#####" },
-        Token{ .type = TokenType.text, .literal = "Heading five" },
-        Token{ .type = TokenType.newLine, .literal = "newline" },
-        Token{ .type = TokenType.heading, .literal = "######" },
-        Token{ .type = TokenType.text, .literal = "Heading six" },
-        Token{ .type = TokenType.EOF, .literal = "EOF" },
+        Token{ .type = .heading, .literal = "#" },
+        Token{ .type = .text, .literal = "Heading" },
+        Token{ .type = .newLine, .literal = "\n" },
+        Token{ .type = .heading, .literal = "##" },
+        Token{ .type = .text, .literal = "Heading two" },
+        Token{ .type = .newLine, .literal = "\n" },
+        Token{ .type = .heading, .literal = "###" },
+        Token{ .type = .text, .literal = "Heading three" },
+        Token{ .type = .newLine, .literal = "\n" },
+        Token{ .type = .heading, .literal = "####" },
+        Token{ .type = .text, .literal = "Heading four" },
+        Token{ .type = .newLine, .literal = "\n" },
+        Token{ .type = .heading, .literal = "#####" },
+        Token{ .type = .text, .literal = "Heading five" },
+        Token{ .type = .newLine, .literal = "\n" },
+        Token{ .type = .heading, .literal = "######" },
+        Token{ .type = .text, .literal = "Heading six" },
+        Token{ .type = .EOF, .literal = "EOF" },
     };
 
     for (expected) |exp| {
@@ -48,8 +47,8 @@ test "headings with spaces before hash" {
     var l = Lexer.init(input);
 
     const expected = [_]Token{
-        Token{ .type = TokenType.text, .literal = "   # Heading with leading spaces" },
-        Token{ .type = TokenType.EOF, .literal = "EOF" },
+        Token{ .type = .text, .literal = "   # Heading with leading spaces" },
+        Token{ .type = .EOF, .literal = "EOF" },
     };
     for (expected) |exp| {
         const tok = try l.nextToken();
@@ -63,9 +62,9 @@ test "headings with no space after hash" {
     var l = Lexer.init(input);
 
     const expected = [_]Token{
-        Token{ .type = TokenType.text, .literal = "#" },
-        Token{ .type = TokenType.text, .literal = "NoSpaceHeading" },
-        Token{ .type = TokenType.EOF, .literal = "EOF" },
+        Token{ .type = .text, .literal = "#" },
+        Token{ .type = .text, .literal = "NoSpaceHeading" },
+        Token{ .type = .EOF, .literal = "EOF" },
     };
     for (expected) |exp| {
         const tok = try l.nextToken();
@@ -79,9 +78,9 @@ test "headings with multiple spaces after hash" {
     var l = Lexer.init(input);
 
     const expected = [_]Token{
-        Token{ .type = TokenType.heading, .literal = "##" },
-        Token{ .type = TokenType.text, .literal = "Multiple spaces after hash" },
-        Token{ .type = TokenType.EOF, .literal = "EOF" },
+        Token{ .type = .heading, .literal = "##" },
+        Token{ .type = .text, .literal = "Multiple spaces after hash" },
+        Token{ .type = .EOF, .literal = "EOF" },
     };
     for (expected) |exp| {
         const tok = try l.nextToken();
@@ -95,9 +94,9 @@ test "invalid heading with too many hashes" {
     var l = Lexer.init(input);
 
     const expected = [_]Token{
-        Token{ .type = TokenType.text, .literal = "#######" },
-        Token{ .type = TokenType.text, .literal = " Seven hashes should not be a heading" },
-        Token{ .type = TokenType.EOF, .literal = "EOF" },
+        Token{ .type = .text, .literal = "#######" },
+        Token{ .type = .text, .literal = " Seven hashes should not be a heading" },
+        Token{ .type = .EOF, .literal = "EOF" },
     };
     for (expected) |exp| {
         const tok = try l.nextToken();
@@ -111,9 +110,9 @@ test "heading with trailing hashes" {
     var l = Lexer.init(input);
 
     const expected = [_]Token{
-        Token{ .type = TokenType.heading, .literal = "##" },
-        Token{ .type = TokenType.text, .literal = "Heading with trailing ##" },
-        Token{ .type = TokenType.EOF, .literal = "EOF" },
+        Token{ .type = .heading, .literal = "##" },
+        Token{ .type = .text, .literal = "Heading with trailing ##" },
+        Token{ .type = .EOF, .literal = "EOF" },
     };
     for (expected) |exp| {
         const tok = try l.nextToken();
@@ -127,8 +126,8 @@ test "heading mid-line should not be heading" {
     var l = Lexer.init(input);
 
     const expected = [_]Token{
-        Token{ .type = TokenType.text, .literal = "This is not a # heading in the middle" },
-        Token{ .type = TokenType.EOF, .literal = "EOF" },
+        Token{ .type = .text, .literal = "This is not a # heading in the middle" },
+        Token{ .type = .EOF, .literal = "EOF" },
     };
     for (expected) |exp| {
         const tok = try l.nextToken();
@@ -147,17 +146,17 @@ test "mixed valid and invalid headings" {
     var l = Lexer.init(input);
 
     const expected = [_]Token{
-        Token{ .type = TokenType.heading, .literal = "#" },
-        Token{ .type = TokenType.text, .literal = "Valid heading" },
-        Token{ .type = TokenType.newLine, .literal = "newline" },
-        Token{ .type = TokenType.text, .literal = "Not a heading # in middle" },
-        Token{ .type = TokenType.newLine, .literal = "newline" },
-        Token{ .type = TokenType.heading, .literal = "##" },
-        Token{ .type = TokenType.text, .literal = "Another valid" },
-        Token{ .type = TokenType.newLine, .literal = "newline" },
-        Token{ .type = TokenType.text, .literal = "#######" },
-        Token{ .type = TokenType.text, .literal = " Too many hashes" },
-        Token{ .type = TokenType.EOF, .literal = "EOF" },
+        Token{ .type = .heading, .literal = "#" },
+        Token{ .type = .text, .literal = "Valid heading" },
+        Token{ .type = .newLine, .literal = "\n" },
+        Token{ .type = .text, .literal = "Not a heading # in middle" },
+        Token{ .type = .newLine, .literal = "\n" },
+        Token{ .type = .heading, .literal = "##" },
+        Token{ .type = .text, .literal = "Another valid" },
+        Token{ .type = .newLine, .literal = "\n" },
+        Token{ .type = .text, .literal = "#######" },
+        Token{ .type = .text, .literal = " Too many hashes" },
+        Token{ .type = .EOF, .literal = "EOF" },
     };
     for (expected) |exp| {
         const tok = try l.nextToken();
@@ -171,8 +170,8 @@ test "empty heading" {
     var l = Lexer.init(input);
 
     const expected = [_]Token{
-        Token{ .type = TokenType.text, .literal = "###" },
-        Token{ .type = TokenType.EOF, .literal = "EOF" },
+        Token{ .type = .text, .literal = "###" },
+        Token{ .type = .EOF, .literal = "EOF" },
     };
     for (expected) |exp| {
         const tok = try l.nextToken();
