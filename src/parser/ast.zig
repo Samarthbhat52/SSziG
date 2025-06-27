@@ -19,19 +19,26 @@ pub const NodeType = enum {
 };
 
 pub const ASTNode = struct {
+    allocator: Allocator,
     type: NodeType,
     content: ?[]const u8 = null,
     children: ArrayList(ASTNode),
     header_level: ?u8 = null,
+    class: ?[]const u8 = null,
 
     pub fn init(allocator: Allocator, node_type: NodeType) ASTNode {
         return ASTNode{
+            .allocator = allocator,
             .type = node_type,
             .children = ArrayList(ASTNode).init(allocator),
         };
     }
 
     pub fn deinit(self: *ASTNode) void {
+        if (self.class) |class| {
+            self.allocator.free(class);
+        }
+
         for (self.children.items) |*child| {
             child.deinit();
         }

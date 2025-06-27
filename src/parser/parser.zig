@@ -12,6 +12,7 @@ const Token = token.Token;
 // Parsers
 const parseHeader = @import("./parse_header.zig").parseHeader;
 const parseDelim = @import("./parse_delimiter.zig").parseDelimiter;
+const parseCodeBlock = @import("./parse_codeblock.zig").parseCodeBlock;
 
 pub const Parser = struct {
     lexer: *Lexer,
@@ -78,6 +79,17 @@ pub const Parser = struct {
 
                     try self.nextToken();
                 },
+                .codeblock => {
+                    if (paragraph_node != null) {
+                        try document.children.append(paragraph_node.?);
+                        paragraph_node = null;
+                    }
+
+                    const code_block_node = try parseCodeBlock(self);
+
+                    try self.nextToken();
+                    try document.children.append(code_block_node);
+                },
                 else => {
                     // A plain text node
                     // Create a new paragraph if null, add to the current one if not
@@ -127,7 +139,6 @@ pub const Parser = struct {
                 try self.nextToken();
                 return code_node;
             },
-            // Redundant currently, will fix later.
             else => {
                 var text_node = ASTNode.init(self.allocator, .text);
                 text_node.content = self.current_token.literal;

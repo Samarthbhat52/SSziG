@@ -103,7 +103,15 @@ pub const Lexer = struct {
                 tok = Token.newToken(.underscore, delim);
             },
             '~' => {
+                const col = l.col;
                 const delim = getDelimiterRun(l, l.ch);
+
+                if (delim.len == 3 and col == 0) {
+                    eatWhiteSpaces(l);
+                    l.readChar();
+                    return Token.newToken(.codeblock, delim);
+                }
+
                 tok = Token.newToken(.tilde, delim);
             },
             '^' => {
@@ -113,9 +121,23 @@ pub const Lexer = struct {
                 tok = Token.newToken(token_type, delim);
             },
             '`' => {
+                const col = l.col;
                 const delim = getDelimiterRun(l, l.ch);
+                const delim_len = delim.len;
 
-                tok = if (delim.len == 1) handler.handleInlineBacktick(l, "`") else Token.newToken(.codeblock, delim);
+                if (delim_len == 1 or delim_len == 2) {
+                    return handler.handleInlineBacktick(l, delim);
+                }
+
+                l.readChar();
+
+                if (delim_len == 3 and col == 0) {
+                    eatWhiteSpaces(l);
+                    l.readChar();
+                    return Token.newToken(.codeblock, delim);
+                }
+
+                return Token.newToken(.text, delim);
             },
             0 => tok = Token.newToken(.EOF, "EOF"),
             else => {

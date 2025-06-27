@@ -57,7 +57,7 @@ pub fn handleInlineBacktick(l: *Lexer, delim: []const u8) Token {
                 len += 1;
             }
 
-            if (len == 1) {
+            if (len == delim.len) {
                 found = true;
                 break;
             }
@@ -76,7 +76,7 @@ pub fn handleInlineBacktick(l: *Lexer, delim: []const u8) Token {
     const content = l.input[l.position + 1 .. i];
 
     // consume all the characters between start and closing block
-    while (l.position < i) {
+    while (l.position < i + delim.len) {
         l.readChar();
     }
 

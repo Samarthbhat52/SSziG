@@ -5,16 +5,14 @@ const token = @import("../lexer/token.zig");
 const Parser = parser.Parser;
 const ParseError = ast.ParseError;
 const ASTNode = ast.ASTNode;
-const NodeType = ast.NodeType;
-const TokenType = token.TokenType;
 
 pub fn parseHeader(self: *Parser, level: u8) ParseError!ASTNode {
-    var header_node = ASTNode.init(self.allocator, NodeType.header);
+    var header_node = ASTNode.init(self.allocator, .header);
     header_node.header_level = level;
 
     try self.nextToken();
 
-    while (self.current_token.type != TokenType.newLine and self.current_token.type != TokenType.EOF) {
+    while (self.current_token.type != .newLine and self.current_token.type != .EOF) {
         const inline_node = try self.parseInline();
         try header_node.children.append(inline_node);
     }

@@ -95,6 +95,19 @@ pub const Html = struct {
                 }
                 try output.appendSlice("</code>");
             },
+            .codeblock => {
+                try output.appendSlice("<pre><code");
+                if (node.class) |class| {
+                    const class_name = try std.fmt.allocPrint(self.allocator, " class=\"{s}\"", .{class});
+                    defer self.allocator.free(class_name);
+                    try output.appendSlice(class_name);
+                }
+                try output.appendSlice(">");
+                for (node.children.items) |child| {
+                    try self.generateNode(output, child);
+                }
+                try output.appendSlice("</code></pre>");
+            },
             .container => {
                 for (node.children.items) |child| {
                     try self.generateNode(output, child);
