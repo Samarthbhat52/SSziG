@@ -1,10 +1,9 @@
 const std = @import("std");
-const Allocator = std.mem.Allocator;
-
 const ast = @import("./ast.zig");
 const token = @import("../lexer/token.zig");
 const lex = @import("../lexer/lexer.zig");
 
+const Allocator = std.mem.Allocator;
 const Lexer = lex.Lexer;
 const ASTNode = ast.ASTNode;
 const ParseError = ast.ParseError;

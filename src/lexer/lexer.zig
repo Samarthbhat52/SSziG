@@ -1,10 +1,12 @@
 const std = @import("std");
-const Token = @import("./token.zig").Token;
-const TokenType = @import("./token.zig").TokenType;
-const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
+const token = @import("./token.zig");
 const util = @import("../utils/delim_rules.zig");
 const handler = @import("./handler.zig");
+
+const Allocator = std.mem.Allocator;
+const ArrayList = std.ArrayList;
+const Token = token.Token;
+const TokenType = token.TokenType;
 
 pub fn eatWhiteSpaces(l: *Lexer) void {
     while (l.peekAhead() == ' ') {
@@ -76,15 +78,6 @@ pub const Lexer = struct {
     pub fn getValidContent(l: *Lexer) []const u8 {
         const start_position = l.position;
         while (util.isValidChar(l.ch)) {
-            l.readChar();
-        }
-
-        return l.input[start_position..l.position];
-    }
-
-    pub fn getContentTill(l: *Lexer, delim: u8) []const u8 {
-        const start_position = l.position;
-        while (l.ch != delim) {
             l.readChar();
         }
 

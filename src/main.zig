@@ -1,7 +1,3 @@
-//! By convention, main.zig is where your main function lives in the case that
-//! you are building an executable. If you are making a library, the convention
-//! is to delete this file and start with root.zig instead.
-
 const std = @import("std");
 const Lexer = @import("./lexer/lexer.zig").Lexer;
 const Parser = @import("./parser/parser.zig").Parser;
@@ -14,20 +10,13 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    // const input = "Time to test ^superscript text^ and also test ^formatting ~~***inside the***~~ superscript^, 2^14^ karma gets you in the arcanum.";
+    const input = "Time to test ^superscript text^ and also test ^formatting ~~***inside the***~~ superscript^, 2^14^ karma gets you in the arcanum.";
     // const input = "*****some random** *sentence**";
     // const input = "***please** work*";
-    const input = "sentence with `code some more **text** ```codeblock too```` block";
+    // const input = "sentence with `code some more **text** codeblock too block`";
 
     std.log.debug("some text: '{s}'", .{input});
     var lex = Lexer.init(input);
-
-    // var tok = try lex.nextToken();
-    //
-    // while (tok.type != TokenType.EOF) {
-    //     std.log.info("type: {s}, token: '{s}'", .{ @tagName(tok.type), tok.literal });
-    //     tok = try lex.nextToken();
-    // }
 
     var p = try Parser.init(allocator, &lex);
 
