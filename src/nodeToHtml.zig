@@ -23,6 +23,11 @@ pub const Html = struct {
 
     fn generateNode(self: *Html, output: *ArrayList(u8), node: ASTNode) !void {
         switch (node.type) {
+            .container => {
+                for (node.children.items) |child| {
+                    try self.generateNode(output, child);
+                }
+            },
             .document => {
                 try output.appendSlice("<div>");
                 for (node.children.items) |child| {
@@ -67,11 +72,11 @@ pub const Html = struct {
                 try output.appendSlice(">");
             },
             .strikethrough => {
-                try output.appendSlice("<s>");
+                try output.appendSlice("<del>");
                 for (node.children.items) |child| {
                     try self.generateNode(output, child);
                 }
-                try output.appendSlice("</s>");
+                try output.appendSlice("</del>");
             },
             .sub => {
                 try output.appendSlice("<sub>");
@@ -95,10 +100,17 @@ pub const Html = struct {
                 }
                 try output.appendSlice("</code>");
             },
+            .quote => {
+                try output.appendSlice("<blockquote>");
+                for (node.children.items) |child| {
+                    try self.generateNode(output, child);
+                }
+                try output.appendSlice("</blockquote>");
+            },
             .codeblock => {
                 try output.appendSlice("<pre><code");
                 if (node.class) |class| {
-                    const class_name = try std.fmt.allocPrint(self.allocator, " class=\"{s}\"", .{class});
+                    const class_name = try std.fmt.allocPrint(self.allocator, " class=\"language-{s}\"", .{class});
                     defer self.allocator.free(class_name);
                     try output.appendSlice(class_name);
                 }
@@ -107,11 +119,6 @@ pub const Html = struct {
                     try self.generateNode(output, child);
                 }
                 try output.appendSlice("</code></pre>");
-            },
-            .container => {
-                for (node.children.items) |child| {
-                    try self.generateNode(output, child);
-                }
             },
             else => {
                 if (node.content) |content| {

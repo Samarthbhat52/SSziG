@@ -34,7 +34,7 @@ pub fn can_close(behind_token: anytype, ahead_token: anytype) bool {
 }
 
 pub fn isValidChar(ch: u8) bool {
-    const stop_chars = [_]u8{ '_', '~', '^', '*', '`', '[', ']', ')', '\n', 0 };
+    const stop_chars = [_]u8{ '_', '~', '^', '*', '`', '!', '[', ']', '(', ')', '\n', 0 };
     for (stop_chars) |c| {
         if (ch == c) {
             return false;

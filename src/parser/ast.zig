@@ -4,13 +4,13 @@ const Allocator = std.mem.Allocator;
 
 pub const NodeType = enum {
     container,
-    newLine,
     document,
     paragraph,
     text,
     bold,
     italic,
     header,
+    quote,
     strikethrough,
     sub,
     sup,

@@ -13,6 +13,7 @@ const Token = token.Token;
 const parseHeader = @import("./parse_header.zig").parseHeader;
 const parseDelim = @import("./parse_delimiter.zig").parseDelimiter;
 const parseCodeBlock = @import("./parse_codeblock.zig").parseCodeBlock;
+const parseQuote = @import("./parse_blockquote.zig").parseQuote;
 
 pub const Parser = struct {
     lexer: *Lexer,
@@ -43,6 +44,13 @@ pub const Parser = struct {
         self.peek_token = try self.lexer.nextToken();
     }
 
+    pub fn finalizeParagraph(_: *Parser, document: *ASTNode, paragraph_node: *?ASTNode) !void {
+        if (paragraph_node.*) |*para| {
+            try document.children.append(para.*);
+            paragraph_node.* = null;
+        }
+    }
+
     pub fn parse(self: *Parser) !ASTNode {
         // Prep the main node.
         var document = ASTNode.init(self.allocator, .document);
@@ -58,32 +66,29 @@ pub const Parser = struct {
         while (self.current_token.type != .EOF) {
             switch (self.current_token.type) {
                 .heading => {
-                    // Check if there is a praragraph already and finalise it.
-                    if (paragraph_node != null) {
-                        try document.children.append(paragraph_node.?);
-                        // Reset paragraph node
-                        paragraph_node = null;
-                    }
+                    try self.finalizeParagraph(&document, &paragraph_node);
 
                     const header_level: u8 = @intCast(self.current_token.literal.len);
 
                     const header_node = try parseHeader(self, header_level);
                     try document.children.append(header_node);
                 },
+                .quote => {
+                    try self.finalizeParagraph(&document, &paragraph_node);
+
+                    const quote_node = try parseQuote(self);
+                    try document.children.append(quote_node);
+                },
                 .newLine => {
                     // If next token is also new line, finalise the current paragraph node
-                    if (self.peek_token.type == .newLine and paragraph_node != null) {
-                        try document.children.append(paragraph_node.?);
-                        paragraph_node = null;
+                    if (self.peek_token.type == .newLine) {
+                        try self.finalizeParagraph(&document, &paragraph_node);
                     }
 
                     try self.nextToken();
                 },
                 .codeblock => {
-                    if (paragraph_node != null) {
-                        try document.children.append(paragraph_node.?);
-                        paragraph_node = null;
-                    }
+                    try self.finalizeParagraph(&document, &paragraph_node);
 
                     const code_block_node = try parseCodeBlock(self);
 
@@ -104,10 +109,7 @@ pub const Parser = struct {
             }
         }
 
-        if (paragraph_node != null) {
-            try document.children.append(paragraph_node.?);
-            paragraph_node = null;
-        }
+        try self.finalizeParagraph(&document, &paragraph_node);
 
         return document;
     }

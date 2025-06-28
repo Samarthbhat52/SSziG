@@ -10,6 +10,12 @@ pub const TokenType = enum {
     caret,
     code,
     codeblock,
+    mark,
+    image_open,
+    alt_open,
+    alt_close,
+    link_open,
+    link_close,
 };
 
 pub const Token = struct {

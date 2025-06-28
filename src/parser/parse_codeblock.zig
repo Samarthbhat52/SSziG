@@ -11,7 +11,7 @@ const ArrayList = std.ArrayList;
 pub fn parseCodeBlock(self: *Parser) ParseError!ASTNode {
     var code_block_node = ASTNode.init(self.allocator, .codeblock);
 
-    try self.nextToken();
+    try self.nextToken(); // Start collecting the language specicifier
 
     // collect the language tag.
     var output = ArrayList(u8).init(self.allocator);
@@ -24,6 +24,10 @@ pub fn parseCodeBlock(self: *Parser) ParseError!ASTNode {
         code_block_node.class = try output.toOwnedSlice();
     } else {
         output.deinit();
+    }
+
+    if (self.current_token.type == .newLine) {
+        try self.nextToken();
     }
 
     while (self.current_token.type != .EOF and self.current_token.type != .codeblock) : (try self.nextToken()) {
