@@ -235,7 +235,7 @@ pub const Lexer = struct {
             },
             0 => tok = Token.newToken(.EOF, "EOF"),
             else => {
-                if (util.isNumeric(l.ch) and (l.peekAhead(1) == '.' or l.peekAhead(1) == ')') and l.peekAhead(2) == ' ') {
+                if (l.col == 0 and util.isNumeric(l.ch) and (l.peekAhead(1) == '.' or l.peekAhead(1) == ')') and l.peekAhead(2) == ' ') {
                     l.advance();
                     l.advance();
 
