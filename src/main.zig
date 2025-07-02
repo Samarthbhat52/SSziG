@@ -10,13 +10,17 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    const input = "Time to test ^superscript text^ and also test ^formatting ~~***inside the***~~ superscript^, 2^14^ karma gets you in the arcanum.";
-    // const input = "*****some random** *sentence**";
-    // const input = "***please** work*";
-    // const input = "sentence with `code some more **text** codeblock too block`";
+    const input = "some text [a link]() some text";
 
     std.log.debug("some text: '{s}'", .{input});
     var lex = Lexer.init(input);
+
+    // var tok = try lex.nextToken();
+    //
+    // while (tok.type != .EOF) {
+    //     std.log.info("type: {s}, value: {s}", .{ @tagName(tok.type), tok.literal });
+    //     tok = try lex.nextToken();
+    // }
 
     var p = try Parser.init(allocator, &lex);
 

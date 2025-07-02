@@ -162,6 +162,14 @@ pub const Lexer = struct {
                 const delim = l.getDelimiterRun(l.ch);
                 tok = Token.newToken(.underscore, delim);
             },
+            '-' => {
+                if (l.col == 0 and l.peekAhead(1) == ' ') {
+                    l.advance();
+                    tok = Token.newToken(.ul, "-");
+                } else {
+                    tok = Token.newToken(.text, "-");
+                }
+            },
             '~' => {
                 const col = l.col;
                 const delim = l.getDelimiterRun(l.ch);

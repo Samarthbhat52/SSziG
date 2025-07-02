@@ -16,6 +16,8 @@ pub const TokenType = enum {
     link,
     link_start,
     link_end,
+    ul,
+    ol,
 };
 
 pub const Token = struct {

@@ -14,6 +14,7 @@ const parseHeader = @import("./parse_header.zig").parseHeader;
 const parseDelim = @import("./parse_delimiter.zig").parseDelimiter;
 const parseQuote = @import("./parse_blockquote.zig").parseQuote;
 const parseLink = @import("./parse_links.zig").parseLinks;
+const parseUlist = @import("./parse_lists.zig").parseUlist;
 
 pub const Parser = struct {
     lexer: *Lexer,
@@ -99,6 +100,14 @@ pub const Parser = struct {
 
                     try self.nextToken();
                     try document.children.append(code_block_node);
+                },
+                .ul => {
+                    try self.finalizeParagraph(&document, &paragraph_node);
+
+                    const list_node = try parseUlist(self);
+
+                    try self.nextToken();
+                    try document.children.append(list_node);
                 },
                 else => {
                     // A plain text node

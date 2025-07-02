@@ -18,6 +18,8 @@ pub const NodeType = enum {
     codeblock,
     image,
     link,
+    ul,
+    ol,
 };
 
 pub const ASTNode = struct {

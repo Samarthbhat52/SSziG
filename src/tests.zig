@@ -87,7 +87,104 @@ test "consecutive formatting markers" {
     try testInput("**bold****more bold** and __underline____more underline__", "<div><p><strong>bold****more bold</strong> and <strong>underline____more underline</strong></p></div>");
 }
 
-test {
-    _ = @import("lexer/header_test.zig");
-    _ = @import("lexer/inline_test.zig");
+test "bold formatting" {
+    try testInput("This is **bold** text.", "<div><p>This is <strong>bold</strong> text.</p></div>");
+}
+
+test "italic formatting" {
+    try testInput("This is *italic* text.", "<div><p>This is <em>italic</em> text.</p></div>");
+}
+
+test "strikethrough formatting" {
+    try testInput("This is ~~struck through~~ text.", "<div><p>This is <del>struck through</del> text.</p></div>");
+}
+
+test "superscript and subscript" {
+    try testInput("H^2^O and H ~2~ O", "<div><p>H<sup>2</sup>O and H <sub>2</sub> O</p></div>");
+}
+
+test "unordered list" {
+    try testInput("- Item one\n- Item two\n- Item three", "<div><ul><li>Item one</li><li>Item two</li><li>Item three</li></ul></div>");
+}
+
+test "anchor link" {
+    try testInput("[OpenAI](https://openai.com)", "<div><p><a href=\"https://openai.com\">OpenAI</a></p></div>");
+}
+
+test "inline code" {
+    try testInput("This is `inline code` in a sentence.", "<div><p>This is <code>inline code</code> in a sentence.</p></div>");
+}
+
+test "code block" {
+    try testInput("```\nfn main() {\n    // code\n}\n```", "<div><pre><code>fn main() {\n    // code\n}\n</code></pre></div>");
+}
+
+test "blockquote" {
+    try testInput("> This is a blockquote.", "<div><blockquote><p>This is a blockquote.</p></blockquote></div>");
+}
+
+test "combined formatting" {
+    try testInput("**Bold**, *Italic*, and ~~Strikethrough~~ together.", "<div><p><strong>Bold</strong>, <em>Italic</em>, and <del>Strikethrough</del> together.</p></div>");
+}
+
+test "nested formatting" {
+    try testInput("**This is *nested* bold**", "<div><p><strong>This is <em>nested</em> bold</strong></p></div>");
+}
+
+test "complex mixed content" {
+    try testInput("- List item with [link](https://example.com), `code`, and **bold** text.", "<div><ul><li>List item with <a href=\"https://example.com\">link</a>, <code>code</code>, and <strong>bold</strong> text.</li></ul></div>");
+}
+
+// Malformed input
+
+test "unclosed bold" {
+    try testInput("This is **bold text", "<div><p>This is **bold text</p></div>");
+}
+
+test "unclosed italic" {
+    try testInput("This is *italic text", "<div><p>This is *italic text</p></div>");
+}
+
+test "unclosed strikethrough" {
+    try testInput("This is ~~strike", "<div><p>This is ~~strike</p></div>");
+}
+
+test "unclosed superscript" {
+    try testInput("E = mc^2", "<div><p>E = mc^2</p></div>");
+}
+
+test "unclosed subscript" {
+    try testInput("H~2O", "<div><p>H~2O</p></div>");
+}
+
+test "unclosed link" {
+    try testInput("[Link text](https://example.com", "<div><p>[Link text](https://example.com</p></div>");
+}
+
+test "unclosed inline code" {
+    try testInput("This is `code", "<div><p>This is `code</p></div>");
+}
+
+test "unclosed code block" {
+    try testInput("```\nfn broken() {}", "<div><pre><code>fn broken() {}</code></pre></div>");
+}
+
+test "unordered list without leading space" {
+    try testInput("-Item without space", "<div><p>-Item without space</p></div>");
+}
+
+test "list followed by paragraph without separation" {
+    try testInput("- List item\nSecond paragraph", "<div><ul><li>List item</li></ul><p>Second paragraph</p></div>");
+}
+
+test "unclosed nested formatting" {
+    try testInput("**Bold *Italic** Still bold*", "<div><p><em><em>Bold <em>Italic</em></em> Still bold</em></p></div>");
+}
+
+test "empty link" {
+    try testInput("[](https://example.com)", "<div><p><a href=\"https://example.com\"></a></p></div>");
+}
+
+test "link with missing URL" {
+    try testInput("[Example]() text", "<div><p><a href=\"\">Example</a> text</p></div>");
 }
