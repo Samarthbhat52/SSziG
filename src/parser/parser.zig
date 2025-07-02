@@ -13,6 +13,7 @@ const Token = token.Token;
 const parseHeader = @import("./parse_header.zig").parseHeader;
 const parseDelim = @import("./parse_delimiter.zig").parseDelimiter;
 const parseQuote = @import("./parse_blockquote.zig").parseQuote;
+const parseLink = @import("./parse_links.zig").parseLinks;
 
 pub const Parser = struct {
     lexer: *Lexer,
@@ -144,6 +145,12 @@ pub const Parser = struct {
 
                 try self.nextToken();
                 return code_node;
+            },
+            .link => {
+                const link_node = try parseLink(self);
+
+                try self.nextToken();
+                return link_node;
             },
             else => {
                 var text_node = ASTNode.init(self.allocator, .text);

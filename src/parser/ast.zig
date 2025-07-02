@@ -16,6 +16,8 @@ pub const NodeType = enum {
     sup,
     code,
     codeblock,
+    image,
+    link,
 };
 
 pub const ASTNode = struct {
@@ -25,6 +27,7 @@ pub const ASTNode = struct {
     children: ArrayList(ASTNode),
     header_level: ?u8 = null,
     class: ?[]const u8 = null,
+    url: ?[]const u8 = null,
 
     pub fn init(allocator: Allocator, node_type: NodeType) ASTNode {
         return ASTNode{

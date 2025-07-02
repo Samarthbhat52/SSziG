@@ -86,27 +86,52 @@ pub const Lexer = struct {
         return l.input[start_position..l.position];
     }
 
-    pub fn collectAltText(l: *Lexer, image: bool) Token {
+    pub fn collectLink(l: *Lexer, image: bool) Token {
+        const delim = if (image) "![" else "[";
+        const fallback_token = if (image) Token.newToken(.text, "![") else Token.newToken(.text, "[");
+
+        const token_type: TokenType = if (image) .image else .link;
+        var tok = Token.newToken(token_type, delim);
+
         l.advance(); // consume the opening alt bracket
 
         // Collect alt text if it has any.
         var alt_idx = l.position; // position of first letter or alt text
-        while (alt_idx < l.input.len - 1 and l.input[alt_idx] != '[') {
+        while (alt_idx < l.input.len - 1 and l.input[alt_idx] != ']') {
             alt_idx += 1;
         }
 
         // No close delim found, just send the text as is as is.
         if (l.input[alt_idx] != ']') {
-            if (image) {
-                return Token.newToken(.text, "![");
-            }
-            return Token.newToken(.text, "[");
+            return fallback_token;
         }
 
-        const delim = if (image) "![" else "[";
-        const token_type: TokenType = if (image) .img_alt else .link_alt;
+        const alt_text = l.input[l.position..alt_idx];
 
-        return Token.newToken(token_type, delim);
+        if (alt_idx + 1 < l.input.len and l.input[alt_idx + 1] != '(') {
+            return fallback_token;
+        }
+
+        // Collect link if it has any
+        const link_idx_start = alt_idx + 2;
+        var link_idx_end = alt_idx + 2; // position of first letter of link
+        while (link_idx_end < l.input.len - 1 and l.input[link_idx_end] != ')') {
+            link_idx_end += 1;
+        }
+
+        // No close link delim found
+        if (l.input[link_idx_end] != ')') {
+            return fallback_token;
+        }
+
+        const url = l.input[link_idx_start..link_idx_end];
+        tok.url = url;
+
+        if (image) {
+            tok.literal = alt_text;
+        }
+
+        return tok;
     }
 
     pub fn nextToken(l: *Lexer) !Token {
@@ -176,6 +201,25 @@ pub const Lexer = struct {
                 }
 
                 return handleInlineBacktick(l, delim);
+            },
+            '!' => {
+                if (l.peekAhead(1) == '[') {
+                    l.advance();
+                    return l.collectLink(true);
+                }
+                tok = Token.newToken(.text, "!");
+            },
+            '[' => {
+                return l.collectLink(false);
+            },
+            ']' => {
+                tok = Token.newToken(.alt_end, "]");
+            },
+            '(' => {
+                tok = Token.newToken(.link_start, "(");
+            },
+            ')' => {
+                tok = Token.newToken(.link_end, ")");
             },
             0 => tok = Token.newToken(.EOF, "EOF"),
             else => {

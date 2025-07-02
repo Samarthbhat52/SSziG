@@ -11,9 +11,11 @@ pub const TokenType = enum {
     code,
     codeblock,
     mark,
-    img_alt,
-    link_alt,
+    image,
+    alt_end,
     link,
+    link_start,
+    link_end,
 };
 
 pub const Token = struct {

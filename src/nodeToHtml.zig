@@ -119,6 +119,18 @@ pub const Html = struct {
                 }
                 try output.appendSlice("</code></pre>");
             },
+            .link => {
+                try output.appendSlice("<a");
+                const url = try std.fmt.allocPrint(self.allocator, " href=\"{s}\"", .{node.url.?});
+                defer self.allocator.free(url);
+                try output.appendSlice(url);
+                try output.appendSlice(">");
+
+                for (node.children.items) |child| {
+                    try self.generateNode(output, child);
+                }
+                try output.appendSlice("</a>");
+            },
             else => {
                 if (node.content) |content| {
                     // Probably replace some symbols with html escapes
