@@ -60,7 +60,7 @@ pub const Lexer = struct {
     pub fn getDelimiterRun(l: *Lexer, delim: u8) []const u8 {
         const position = l.position;
 
-        while (l.peekAhead() == delim) {
+        while (l.peekAhead(1) == delim) {
             l.advance();
         }
 
@@ -68,20 +68,12 @@ pub const Lexer = struct {
     }
 
     // looks ahead without consuming a character
-    pub fn peekAhead(l: *Lexer) u8 {
-        if (l.position == l.input.len - 1) {
+    pub fn peekAhead(l: *Lexer, pos: u8) u8 {
+        if (l.position == l.input.len - pos) {
             return 0;
         }
 
-        return l.input[l.readPosition];
-    }
-
-    pub fn peekAheadTwo(l: *Lexer) u8 {
-        if (l.position == l.input.len - 2) {
-            return 0;
-        }
-
-        return l.input[l.position + 2];
+        return l.input[l.position + pos];
     }
 
     // all the characters till a non-valid character is found
@@ -128,7 +120,7 @@ pub const Lexer = struct {
                 const col = l.col;
                 const delim = l.getDelimiterRun(l.ch);
 
-                if (col == 0 and delim.len <= 6 and l.peekAhead() == ' ') {
+                if (col == 0 and delim.len <= 6 and l.peekAhead(1) == ' ') {
                     l.advance();
                     l.eatWhiteSpaces();
 
@@ -156,7 +148,7 @@ pub const Lexer = struct {
                 tok = Token.newToken(.tilde, delim);
             },
             '>' => {
-                if (l.col == 0 and l.peekAhead() == ' ') {
+                if (l.col == 0 and l.peekAhead(1) == ' ') {
                     l.advance();
                     l.eatWhiteSpaces();
                     return Token.newToken(.quote, ">");
@@ -185,17 +177,6 @@ pub const Lexer = struct {
 
                 return handleInlineBacktick(l, delim);
             },
-            // '!' => {
-            //     if (l.peekAhead() == '[') {
-            //         l.advance();
-            //         return l.collectAltText(true);
-            //     }
-            //
-            //     tok = Token.newToken(.text, "!");
-            // },
-            // '[' => {
-            //     return l.collectAltText(false);
-            // },
             0 => tok = Token.newToken(.EOF, "EOF"),
             else => {
                 const content = l.getValidContent();

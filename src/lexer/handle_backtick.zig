@@ -65,7 +65,7 @@ pub fn handleBlockBacktick(l: *Lexer, delim: u8) Token {
     const code_content_start = l.position;
     var closing_found = false;
     while (l.ch != 0) {
-        if (l.col == 0 and l.ch == delim and l.peekAhead() == delim and l.peekAheadTwo() == delim) {
+        if (l.col == 0 and l.ch == delim and l.peekAhead(1) == delim and l.peekAhead(2) == delim) {
             closing_found = true;
             break;
         }
