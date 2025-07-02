@@ -3,12 +3,13 @@ const token = @import("./token.zig");
 const util = @import("../utils/delim_rules.zig");
 const handler = @import("./handle_backtick.zig");
 
-const handleInlineBacktick = handler.handleInlineBacktick;
-const handleBlockBacktick = handler.handleBlockBacktick;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Token = token.Token;
 const TokenType = token.TokenType;
+
+const handleInlineBacktick = handler.handleInlineBacktick;
+const handleBlockBacktick = handler.handleBlockBacktick;
 
 pub const Lexer = struct {
     ch: u8,
@@ -29,26 +30,24 @@ pub const Lexer = struct {
 
     // Consumes a character
     pub fn advance(l: *Lexer) void {
-        if (l.ch == 0 and l.position >= l.input.len) { // Check position to be sure it's actual EOF state
+        // Early return if already at EOF
+        if (l.position >= l.input.len) {
             return;
         }
 
-        // Basically CRLF
+        // Update column tracking
         if (l.ch == '\n') {
             l.col = 0;
-        } else if (l.ch != 0) {
+        } else {
             l.col += 1;
         }
 
-        if (l.readPosition >= l.input.len) { // If the character we are about to "read" is beyond the input
-            l.ch = 0; // Set current character to EOF
-            l.position = l.readPosition; // Position now reflects EOF (e.g., input.len)
-            // l.readPosition is not advanced further
-        } else {
-            l.ch = l.input[l.readPosition];
-            l.position = l.readPosition;
-            l.readPosition += 1;
-        }
+        // Advance position
+        l.position = l.readPosition;
+        l.readPosition += 1;
+
+        // Set next character or EOF
+        l.ch = if (l.position < l.input.len) l.input[l.position] else 0;
     }
 
     pub fn eatWhiteSpaces(l: *Lexer) void {
@@ -236,10 +235,17 @@ pub const Lexer = struct {
             },
             0 => tok = Token.newToken(.EOF, "EOF"),
             else => {
-                const content = l.getValidContent();
+                if (util.isNumeric(l.ch) and (l.peekAhead(1) == '.' or l.peekAhead(1) == ')') and l.peekAhead(2) == ' ') {
+                    l.advance();
+                    l.advance();
 
-                tok = Token.newToken(.text, content);
-                return tok;
+                    tok = Token.newToken(.ol, "1.");
+                } else {
+                    const content = l.getValidContent();
+
+                    tok = Token.newToken(.text, content);
+                    return tok;
+                }
             },
         }
 

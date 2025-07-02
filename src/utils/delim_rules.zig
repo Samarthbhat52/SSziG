@@ -43,3 +43,7 @@ pub fn isValidChar(ch: u8) bool {
 
     return true;
 }
+
+pub fn isNumeric(ch: u8) bool {
+    return ch >= '0' and ch <= '9';
+}

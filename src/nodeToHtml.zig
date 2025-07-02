@@ -147,6 +147,15 @@ pub const Html = struct {
                 }
                 try output.appendSlice("</ul>");
             },
+            .ol => {
+                try output.appendSlice("<ol>");
+                for (node.children.items) |child| {
+                    try output.appendSlice("<li>");
+                    try self.generateNode(output, child);
+                    try output.appendSlice("</li>");
+                }
+                try output.appendSlice("</ol>");
+            },
             else => {
                 if (node.content) |content| {
                     // Probably replace some symbols with html escapes
