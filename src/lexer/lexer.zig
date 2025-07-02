@@ -4,6 +4,7 @@ const util = @import("../utils/delim_rules.zig");
 const handler = @import("./handle_backtick.zig");
 
 const handleInlineBacktick = handler.handleInlineBacktick;
+const handleBlockBacktick = handler.handleBlockBacktick;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Token = token.Token;
@@ -75,6 +76,14 @@ pub const Lexer = struct {
         return l.input[l.readPosition];
     }
 
+    pub fn peekAheadTwo(l: *Lexer) u8 {
+        if (l.position == l.input.len - 2) {
+            return 0;
+        }
+
+        return l.input[l.position + 2];
+    }
+
     // all the characters till a non-valid character is found
     pub fn getValidContent(l: *Lexer) []const u8 {
         const start_position = l.position;
@@ -83,6 +92,29 @@ pub const Lexer = struct {
         }
 
         return l.input[start_position..l.position];
+    }
+
+    pub fn collectAltText(l: *Lexer, image: bool) Token {
+        l.advance(); // consume the opening alt bracket
+
+        // Collect alt text if it has any.
+        var alt_idx = l.position; // position of first letter or alt text
+        while (alt_idx < l.input.len - 1 and l.input[alt_idx] != '[') {
+            alt_idx += 1;
+        }
+
+        // No close delim found, just send the text as is as is.
+        if (l.input[alt_idx] != ']') {
+            if (image) {
+                return Token.newToken(.text, "![");
+            }
+            return Token.newToken(.text, "[");
+        }
+
+        const delim = if (image) "![" else "[";
+        const token_type: TokenType = if (image) .img_alt else .link_alt;
+
+        return Token.newToken(token_type, delim);
     }
 
     pub fn nextToken(l: *Lexer) !Token {
@@ -118,9 +150,7 @@ pub const Lexer = struct {
                 const delim = l.getDelimiterRun(l.ch);
 
                 if (delim.len == 3 and col == 0) {
-                    l.advance();
-                    l.eatWhiteSpaces();
-                    return Token.newToken(.codeblock, delim);
+                    return handleBlockBacktick(l, l.ch);
                 }
 
                 tok = Token.newToken(.tilde, delim);
@@ -145,37 +175,27 @@ pub const Lexer = struct {
                 const delim = l.getDelimiterRun(l.ch);
                 const delim_len = delim.len;
 
-                if (delim_len == 1 or delim_len == 2) {
-                    return handleInlineBacktick(l, delim);
+                if (delim_len > 3) {
+                    return Token.newToken(.text, delim);
                 }
 
-                l.advance();
                 if (delim_len == 3 and col == 0) {
-                    l.eatWhiteSpaces();
-                    return Token.newToken(.codeblock, delim);
+                    return handleBlockBacktick(l, l.ch);
                 }
 
-                return Token.newToken(.text, delim);
+                return handleInlineBacktick(l, delim);
             },
-            '!' => {
-                if (l.peekAhead() == '[') {
-                    tok = Token.newToken(.image_open, "![");
-                } else {
-                    tok = Token.newToken(.text, "!");
-                }
-            },
-            '[' => {
-                tok = Token.newToken(.alt_open, "[");
-            },
-            ']' => {
-                tok = Token.newToken(.alt_close, "]");
-            },
-            '(' => {
-                tok = Token.newToken(.link_open, "(");
-            },
-            ')' => {
-                tok = Token.newToken(.link_close, ")");
-            },
+            // '!' => {
+            //     if (l.peekAhead() == '[') {
+            //         l.advance();
+            //         return l.collectAltText(true);
+            //     }
+            //
+            //     tok = Token.newToken(.text, "!");
+            // },
+            // '[' => {
+            //     return l.collectAltText(false);
+            // },
             0 => tok = Token.newToken(.EOF, "EOF"),
             else => {
                 const content = l.getValidContent();

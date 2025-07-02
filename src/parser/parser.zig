@@ -12,7 +12,6 @@ const Token = token.Token;
 // Parsers
 const parseHeader = @import("./parse_header.zig").parseHeader;
 const parseDelim = @import("./parse_delimiter.zig").parseDelimiter;
-const parseCodeBlock = @import("./parse_codeblock.zig").parseCodeBlock;
 const parseQuote = @import("./parse_blockquote.zig").parseQuote;
 
 pub const Parser = struct {
@@ -90,7 +89,12 @@ pub const Parser = struct {
                 .codeblock => {
                     try self.finalizeParagraph(&document, &paragraph_node);
 
-                    const code_block_node = try parseCodeBlock(self);
+                    var code_block_node = ASTNode.init(self.allocator, .codeblock);
+                    code_block_node.content = self.current_token.literal;
+
+                    if (self.current_token.class) |class| {
+                        code_block_node.class = class;
+                    }
 
                     try self.nextToken();
                     try document.children.append(code_block_node);

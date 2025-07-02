@@ -104,11 +104,7 @@ test "test code blocks" {
         Token{ .type = .text, .literal = "header" },
         Token{ .type = .newLine, .literal = "\n" },
         Token{ .type = .newLine, .literal = "\n" },
-        Token{ .type = .codeblock, .literal = "```" },
-        Token{ .type = .newLine, .literal = "\n" },
-        Token{ .type = .text, .literal = "code block" },
-        Token{ .type = .newLine, .literal = "\n" },
-        Token{ .type = .codeblock, .literal = "```" },
+        Token{ .type = .codeblock, .literal = "code block\n" },
         Token{ .type = .EOF, .literal = "EOF" },
     };
 

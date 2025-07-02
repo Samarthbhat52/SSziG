@@ -35,10 +35,6 @@ pub const ASTNode = struct {
     }
 
     pub fn deinit(self: *ASTNode) void {
-        if (self.class) |class| {
-            self.allocator.free(class);
-        }
-
         for (self.children.items) |*child| {
             child.deinit();
         }

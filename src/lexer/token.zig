@@ -11,17 +11,17 @@ pub const TokenType = enum {
     code,
     codeblock,
     mark,
-    image_open,
-    alt_open,
-    alt_close,
-    link_open,
-    link_close,
+    img_alt,
+    link_alt,
+    link,
 };
 
 pub const Token = struct {
     type: TokenType,
     literal: []const u8,
-    header_level: ?u8 = null,
+    header_level: ?u8 = null, // Only for headers
+    class: ?[]const u8 = null, // For codeblocks
+    url: ?[]const u8 = null, // For link and image tags
 
     pub fn newToken(tok: TokenType, lit: []const u8) Token {
         return .{ .type = tok, .literal = lit };
