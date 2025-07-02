@@ -188,3 +188,39 @@ test "empty link" {
 test "link with missing URL" {
     try testInput("[Example]() text", "<div><p><a href=\"\">Example</a> text</p></div>");
 }
+
+test "basic image" {
+    try testInput("![Alt text](https://example.com/image.png)", "<div><p><img src=\"https://example.com/image.png\" alt=\"Alt text\" /></p></div>");
+}
+
+test "image surrounded by text" {
+    try testInput("Here is an image: ![Logo](https://example.com/logo.svg) in the middle.", "<div><p>Here is an image: <img src=\"https://example.com/logo.svg\" alt=\"Logo\" /> in the middle.</p></div>");
+}
+
+test "image inside list item" {
+    try testInput("- Item with ![icon](icon.png)", "<div><ul><li>Item with <img src=\"icon.png\" alt=\"icon\" /></li></ul></div>");
+}
+
+test "missing parentheses in image" {
+    try testInput("![alt text]image.png", "<div><p>![alt text]image.png</p></div>");
+}
+
+test "missing alt text" {
+    try testInput("![](image.png)", "<div><p><img src=\"image.png\" alt=\"\" /></p></div>");
+}
+
+test "missing src in image" {
+    try testInput("![Alt]()", "<div><p><img src=\"\" alt=\"Alt\" /></p></div>");
+}
+
+test "image without closing bracket" {
+    try testInput("![Broken image(image.png)", "<div><p>![Broken image(image.png)</p></div>");
+}
+
+test "image with only alt text" {
+    try testInput("![Only alt text]", "<div><p>![Only alt text]</p></div>");
+}
+
+test "image with malformed URL" {
+    try testInput("![Alt](ht!tp://bad[.url)", "<div><p><img src=\"ht!tp://bad[.url\" alt=\"Alt\" /></p></div>");
+}

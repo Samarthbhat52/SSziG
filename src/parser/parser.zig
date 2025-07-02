@@ -14,6 +14,7 @@ const parseHeader = @import("./parse_header.zig").parseHeader;
 const parseDelim = @import("./parse_delimiter.zig").parseDelimiter;
 const parseQuote = @import("./parse_blockquote.zig").parseQuote;
 const parseLink = @import("./parse_links.zig").parseLinks;
+const parseImage = @import("./parse_links.zig").parseImage;
 const parseUlist = @import("./parse_lists.zig").parseUlist;
 
 pub const Parser = struct {
@@ -160,6 +161,12 @@ pub const Parser = struct {
 
                 try self.nextToken();
                 return link_node;
+            },
+            .image => {
+                const image_node = try parseImage(self);
+
+                try self.nextToken();
+                return image_node;
             },
             else => {
                 var text_node = ASTNode.init(self.allocator, .text);

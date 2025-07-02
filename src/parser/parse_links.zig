@@ -26,3 +26,17 @@ pub fn parseLinks(self: *Parser) ParseError!ASTNode {
 
     return node;
 }
+
+pub fn parseImage(self: *Parser) ParseError!ASTNode {
+    var image_node = ASTNode.init(self.allocator, .image);
+    image_node.url = self.current_token.url;
+    image_node.content = self.current_token.literal;
+
+    while (self.current_token.type != .link_end) {
+        try self.nextToken();
+    }
+
+    return image_node;
+}
+
+// TODO: Improve image handling, it's very wasteful atm.

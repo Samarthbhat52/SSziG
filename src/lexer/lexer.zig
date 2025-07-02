@@ -115,6 +115,11 @@ pub const Lexer = struct {
         // Collect link if it has any
         const link_idx_start = alt_idx + 2;
         var link_idx_end = alt_idx + 2; // position of first letter of link
+
+        if (link_idx_start > l.input.len - 1) {
+            return fallback_token;
+        }
+
         while (link_idx_end < l.input.len - 1 and l.input[link_idx_end] != ')') {
             link_idx_end += 1;
         }

@@ -131,6 +131,13 @@ pub const Html = struct {
                 }
                 try output.appendSlice("</a>");
             },
+            .image => {
+                try output.appendSlice("<img ");
+                const attrs = try std.fmt.allocPrint(self.allocator, "src=\"{s}\" alt=\"{s}\"", .{ node.url.?, node.content.? });
+                defer self.allocator.free(attrs);
+                try output.appendSlice(attrs);
+                try output.appendSlice(" />");
+            },
             .ul => {
                 try output.appendSlice("<ul>");
                 for (node.children.items) |child| {
