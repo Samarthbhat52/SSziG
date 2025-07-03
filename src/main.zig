@@ -1,4 +1,5 @@
 const std = @import("std");
+const config = @import("config");
 const print = std.debug.print;
 
 const Allocator = std.mem.Allocator;
@@ -14,28 +15,32 @@ const CliError = error{
 
 const Command = enum {
     help,
+    version,
     unknown,
 };
 
 fn parseCommand(arg: []const u8) Command {
-    if (std.mem.eql(u8, arg, "help")) {
+    if (std.mem.eql(u8, arg, "help") or (std.mem.eql(u8, arg, "-h"))) {
         return .help;
+    } else if (std.mem.eql(u8, arg, "version") or (std.mem.eql(u8, arg, "-v"))) {
+        return .version;
     }
     return .unknown;
 }
 
 fn printHelp() void {
-    print("\nSSziG v0.1.0\n\n", .{});
+    print("\nSSziG v{s}\n\n", .{config.version});
     print("USAGE:\n", .{});
     print("    sszig [COMMAND]\n\n", .{});
     print("COMMANDS:\n", .{});
-    print("    help, --help, -h    Show this help message\n\n", .{});
+    print("    help, -h    Show this help message\n\n", .{});
+    print("    version, -v    Show the current version\n\n", .{});
 }
 
 fn replFunction(alloc: Allocator) !void {
     const stdin = std.io.getStdIn().reader();
 
-    print("\nSSziG v0.1.0\n", .{});
+    print("\nSSziG v{s}\n", .{config.version});
     print("write in a markdown line and see the parsed output\n\n", .{});
     print("Type 'quit' or 'exit' to stop\n", .{});
     print("----------------------------------------\n", .{});
@@ -92,6 +97,7 @@ pub fn main() !void {
 
     switch (command) {
         .help => printHelp(),
+        .version => print("SSziG v{s}\n", .{config.version}),
         .unknown => {
             print("\nError: Unknown command '{s}'\n", .{args[1]});
             print("Run 'sszig help' for usage information.\n", .{});
