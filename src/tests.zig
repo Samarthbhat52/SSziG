@@ -80,7 +80,7 @@ test "empty formatting markers" {
 }
 
 test "overlapping emphasis boundaries" {
-    try testInput("_italic **bold and italic_ still bold**", "<div><p>_italic <strong>bold and italic_ still bold</strong></p></div>");
+    try testInput("_italic **bold and italic_ still bold**", "<div><p><em>italic **bold and italic</em> still bold**</p></div>");
 }
 
 test "consecutive formatting markers" {
@@ -136,6 +136,22 @@ test "complex mixed content" {
 }
 
 // Malformed input
+
+test "multiple malformed markers" {
+    try testInput("Mix of ~~strikethrough __underline **bold*", "<div><p>Mix of ~~strikethrough __underline *<em>bold</em></p></div>");
+}
+
+test "random lone formatting symbols" {
+    try testInput("Symbols like *, _, ~, and ` in text.", "<div><p>Symbols like *, _, ~, and ` in text.</p></div>");
+}
+
+test "empty strikethrough markers" {
+    try testInput("This has ~~ ~~ empty strikethrough.", "<div><p>This has ~~ ~~ empty strikethrough.</p></div>");
+}
+
+test "incomplete strikethrough in bold" {
+    try testInput("markdown with **bold but ~~incomplete strikethrough**", "<div><p>markdown with <strong>bold but ~~incomplete strikethrough</strong></p></div>");
+}
 
 test "unclosed bold" {
     try testInput("This is **bold text", "<div><p>This is **bold text</p></div>");

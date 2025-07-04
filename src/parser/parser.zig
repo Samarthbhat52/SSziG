@@ -145,9 +145,7 @@ pub const Parser = struct {
             .tilde,
             .caret,
             => {
-                const ast_node = try parseDelim(self, delim);
-
-                return ast_node;
+                return try parseDelim(self, delim);
             },
             .code => {
                 var code_node = ASTNode.init(self.allocator, .code);

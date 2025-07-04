@@ -28,6 +28,18 @@ const ParseResult = struct {
     remaining_close_length: usize,
 };
 
+fn isAnotherInlineDelim(delim: TokenType) bool {
+    const inlineDelims = [_]TokenType{ .caret, .asterisk, .underscore, .tilde };
+
+    for (inlineDelims) |d| {
+        if (d == delim) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 fn createDelimiterInfo(self: *Parser, tok: Token) DelimiterInfo {
     return DelimiterInfo{
         .token = tok,
@@ -142,8 +154,8 @@ pub fn parseDelimiter(self: *Parser, delim: TokenType) ParseError!ASTNode {
     while (self.current_token.type != TokenType.EOF and
         self.current_token.type != TokenType.newLine)
     {
+        const close_delim_info = createDelimiterInfo(self, self.current_token);
         if (self.current_token.type == delim) {
-            const close_delim_info = createDelimiterInfo(self, self.current_token);
             if (close_delim_info.can_close) {
                 const result = try handleClosingDelimiter(self, &content_buf, &open_delim_info, close_delim_info);
 
@@ -160,6 +172,10 @@ pub fn parseDelimiter(self: *Parser, delim: TokenType) ParseError!ASTNode {
                 // Continue parsing if we have remaining open delimiters
                 continue;
             }
+        }
+
+        if (!close_delim_info.can_open and self.current_token.type != delim and isAnotherInlineDelim(self.current_token.type)) {
+            return createFallbackTextNode(self.allocator, content_buf, open_delim_info);
         }
 
         // Parse inline content
