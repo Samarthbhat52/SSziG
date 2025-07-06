@@ -55,7 +55,6 @@ pub fn main() !void {
         var cwd = std.fs.cwd();
 
         try generatePageRecursive(allocator, &cwd, dirname, "page");
-        // try parseFile(filename);
         return;
     }
 
@@ -120,13 +119,13 @@ fn generatePageRecursive(
     var it = dir.iterate();
     while (try it.next()) |entry| switch (entry.kind) {
         .directory => {
-            const new_content_dir = try std.mem.concat(allocator, u8, &.{
+            const new_content_dir = try path.join(allocator, &.{
                 content_dir,
                 entry.name,
             });
             defer allocator.free(new_content_dir);
 
-            const new_dest_dir = try std.mem.concat(allocator, u8, &.{
+            const new_dest_dir = try path.join(allocator, &.{
                 dest_dir,
                 entry.name,
             });
@@ -136,7 +135,7 @@ fn generatePageRecursive(
         },
         .file => {
             // Create a new file, parse content, and add the parsed content to the new file.
-            const content_file_path = try std.mem.concat(allocator, u8, &.{ content_dir, entry.name });
+            const content_file_path = try path.join(allocator, &.{ content_dir, entry.name });
             defer allocator.free(content_file_path);
 
             try parseFile(content_file_path, dest_dir, cwd);
@@ -158,11 +157,7 @@ fn parseFile(
 
     // Read from file.
     const max_bytes = std.math.maxInt(usize);
-    const input = cwd.*.readFileAlloc(allocator, content_file_path, max_bytes) catch |err| {
-        // TODO: Handle this error better
-        print("Failed to read file: {}\n", .{err});
-        return err;
-    };
+    const input = try cwd.*.readFileAlloc(allocator, content_file_path, max_bytes);
 
     // Parse md to html.
     var lex = Lexer.init(input);
@@ -201,7 +196,7 @@ fn createHtmlFile(
     const html_filename = try std.mem.concat(allocator, u8, &.{ basename_no_ext, ".html" });
     defer allocator.free(html_filename);
 
-    const html_path = try std.fs.path.join(allocator, &.{ dest_dir, html_filename });
+    const html_path = try path.join(allocator, &.{ dest_dir, html_filename });
     defer allocator.free(html_path);
 
     // Write to the destination file.
@@ -211,4 +206,5 @@ fn createHtmlFile(
     var bufwriter = buffered.writer();
 
     try bufwriter.writeAll(content);
+    try buffered.flush();
 }
