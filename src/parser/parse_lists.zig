@@ -12,7 +12,7 @@ const NodeType = ast.NodeType;
 
 pub fn parseList(self: *Parser, tok_type: TokenType) ParseError!ASTNode {
     const node_type = if (tok_type == .ul) NodeType.ul else NodeType.ol;
-    var ul_node = ASTNode.init(self.allocator, node_type);
+    var list_node = ASTNode.init(self.allocator, node_type);
 
     // consume the '-' token
     try self.nextToken();
@@ -21,7 +21,7 @@ pub fn parseList(self: *Parser, tok_type: TokenType) ParseError!ASTNode {
 
     while (self.current_token.type != .EOF) {
         if (self.current_token.type == .newLine and container_node != null) {
-            try ul_node.children.append(container_node.?);
+            try list_node.children.append(container_node.?);
             container_node = null;
 
             if (self.peek_token.type != tok_type) {
@@ -41,7 +41,7 @@ pub fn parseList(self: *Parser, tok_type: TokenType) ParseError!ASTNode {
     }
 
     if (container_node != null) {
-        try ul_node.children.append(container_node.?);
+        try list_node.children.append(container_node.?);
     }
-    return ul_node;
+    return list_node;
 }

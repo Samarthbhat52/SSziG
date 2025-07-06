@@ -39,6 +39,13 @@ test "code block and multiple formatting" {
     , "<div><p>a sentence with <code>code block</code> and some other <strong>formatting</strong> <em>with italic</em> and <del>strikethrough</del></p><blockquote><p>let's add in a quote as well</p></blockquote></div>");
 }
 
+test "multiline block quote" {
+    try testInput((
+        \\> blockquote line one.
+        \\> blockquote line two.
+    ), "<div><blockquote><p>blockquote line one.\nblockquote line two.</p></blockquote></div>");
+}
+
 test "too many heading hashes" {
     try testInput("####### wrong heading", "<div><p>####### wrong heading</p></div>");
 }

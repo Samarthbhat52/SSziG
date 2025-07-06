@@ -1,40 +1,49 @@
 const std = @import("std");
-const config = @import("config");
 const print = std.debug.print;
-
 const Allocator = std.mem.Allocator;
+
+const clap = @import("clap");
+const config = @import("config");
+
 const Lexer = @import("./lexer/lexer.zig").Lexer;
-const Parser = @import("./parser/parser.zig").Parser;
-const Html = @import("./nodeToHtml.zig").Html;
 const TokenType = @import("./lexer/token.zig").TokenType;
+const Html = @import("./nodeToHtml.zig").Html;
+const Parser = @import("./parser/parser.zig").Parser;
 
-const CliError = error{
-    InvalidCommand,
-    MissingArgument,
-};
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-const Command = enum {
-    help,
-    version,
-    unknown,
-};
+    const params = comptime clap.parseParamsComptime(
+        \\-h, --help             Display this help and exit.
+        \\-v, --version          Display version and exit.
+        \\-f, --file             Markdown file path.
+        \\-d, --dir              Directory of markdown files (can be nested).
+        \\<str>
+        \\
+    );
 
-fn parseCommand(arg: []const u8) Command {
-    if (std.mem.eql(u8, arg, "help") or (std.mem.eql(u8, arg, "-h"))) {
-        return .help;
-    } else if (std.mem.eql(u8, arg, "version") or (std.mem.eql(u8, arg, "-v"))) {
-        return .version;
+    var diag = clap.Diagnostic{};
+    var res = clap.parse(clap.Help, &params, clap.parsers.default, .{
+        .diagnostic = &diag,
+        .allocator = gpa.allocator(),
+    }) catch |err| {
+        diag.report(std.io.getStdErr().writer(), err) catch {};
+        return err;
+    };
+    defer res.deinit();
+
+    if (res.args.help != 0) {
+        return clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
     }
-    return .unknown;
-}
 
-fn printHelp() void {
-    print("\nSSziG v{s}\n\n", .{config.version});
-    print("USAGE:\n", .{});
-    print("    sszig [COMMAND]\n\n", .{});
-    print("COMMANDS:\n", .{});
-    print("    help, -h    Show this help message\n\n", .{});
-    print("    version, -v    Show the current version\n\n", .{});
+    if (res.args.version != 0) {
+        print("SSziG v{s}\n", .{config.version});
+        return;
+    }
+
+    try replFunction(allocator);
 }
 
 fn replFunction(alloc: Allocator) !void {
@@ -59,49 +68,20 @@ fn replFunction(alloc: Allocator) !void {
             }
 
             var lex = Lexer.init(input);
-
             var p = try Parser.init(alloc, &lex);
-
             var document = try p.parse();
-            defer document.deinit();
 
             var generator = Html.init(alloc);
             const html = try generator.generateHtml(document);
 
-            defer alloc.free(html);
-
             print("SSzig: '{s}'\n", .{html});
+
+            document.deinit();
+            alloc.free(html);
             continue;
         } else {
-            // EOF reached (Ctrl+D on Unix, Ctrl+Z on Windows)
             print("\nclosing\n", .{});
             break;
         }
-    }
-}
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
-
-    if (args.len < 2) {
-        try replFunction(allocator);
-        return;
-    }
-
-    const command = parseCommand(args[1]);
-
-    switch (command) {
-        .help => printHelp(),
-        .version => print("SSziG v{s}\n", .{config.version}),
-        .unknown => {
-            print("\nError: Unknown command '{s}'\n", .{args[1]});
-            print("Run 'sszig help' for usage information.\n", .{});
-            return;
-        },
     }
 }

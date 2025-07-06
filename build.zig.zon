@@ -2,6 +2,12 @@
     .name = .SSziG,
 
     .version = "1.0.0",
+    .dependencies = .{
+        .clap = .{
+            .url = "git+https://github.com/Hejsil/zig-clap#cc5c6a5d71a317ed4b0ad776842d1d0655f72d0a",
+            .hash = "clap-0.10.0-oBajB7jkAQAZ4cKLlzkeV9mDu2yGZvtN2QuOyfAfjBij",
+        },
+    },
 
     .fingerprint = 0x65c80b115d7f45a4, // Changing this has security and trust implications.
 

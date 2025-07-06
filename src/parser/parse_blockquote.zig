@@ -12,7 +12,23 @@ pub fn parseQuote(self: *Parser) ParseError!ASTNode {
 
     try self.nextToken();
 
-    while (self.current_token.type != .newLine and self.current_token.type != .EOF) {
+    while (self.current_token.type != .EOF) {
+        if (self.current_token.type == .newLine) {
+            if (self.peek_token.type != .quote) {
+                break;
+            }
+
+            var new_line_node = ASTNode.init(self.allocator, .text);
+            new_line_node.content = "\n";
+
+            try paragraph_node.children.append(new_line_node);
+
+            try self.nextToken();
+            try self.nextToken();
+
+            continue;
+        }
+
         const inline_node = try self.parseInline();
         try paragraph_node.children.append(inline_node);
     }

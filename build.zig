@@ -2,6 +2,12 @@ const std = @import("std");
 const zon: struct {
     name: enum { SSziG },
     version: []const u8,
+    dependencies: struct {
+        clap: struct {
+            url: []const u8,
+            hash: []const u8,
+        },
+    },
     fingerprint: usize,
     minimum_zig_version: []const u8,
     paths: [5][]const u8,
@@ -17,6 +23,9 @@ pub fn build(b: *std.Build) void {
         .optimize = .ReleaseSafe,
     });
 
+    const clap = b.dependency("clap", .{});
+    exe.root_module.addImport("clap", clap.module("clap"));
+
     const options = b.addOptions();
     options.addOption([]const u8, "version", zon.version);
     exe.root_module.addOptions("config", options);
@@ -26,8 +35,6 @@ pub fn build(b: *std.Build) void {
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
 
-    // This allows the user to pass arguments to the application in the build
-    // command itself, like this: `zig build run -- arg1 arg2 etc`
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
