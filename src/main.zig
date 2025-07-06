@@ -13,6 +13,8 @@ const TokenType = @import("./lexer/token.zig").TokenType;
 const Html = @import("./nodeToHtml.zig").Html;
 const Parser = @import("./parser/parser.zig").Parser;
 
+const html_template = @import("./template.zig").html_template;
+
 const FSError = error{
     NotMdFileError,
     MissingExtError,
@@ -61,50 +63,6 @@ pub fn main() !void {
     try replFunction(allocator);
 }
 
-fn replFunction(alloc: Allocator) !void {
-    const stdin_reader = std.io.getStdIn().reader();
-    var stdin_buffer = std.io.bufferedReader(stdin_reader);
-    const stdin = stdin_buffer.reader();
-
-    print("\nSSziG v{s}\n", .{config.version});
-    print("write in a markdown line and see the parsed output\n\n", .{});
-    print("Type 'quit' or 'exit' to stop\n", .{});
-    print("----------------------------------------\n", .{});
-
-    while (true) {
-        print("> ", .{});
-
-        // read from stdin
-        if (try stdin.readUntilDelimiterOrEofAlloc(alloc, '\n', 1024)) |input| {
-            defer alloc.free(input);
-
-            // check for exit command.
-            if (std.mem.eql(u8, input, "quit") or std.mem.eql(u8, input, "exit")) {
-                print("closing\n", .{});
-                break;
-            }
-
-            var lex = Lexer.init(input);
-            var p = try Parser.init(alloc, &lex);
-            var document = try p.parse();
-
-            var generator = Html.init(alloc);
-            const html = try generator.generateHtml(document);
-
-            print("SSzig: '{s}'\n", .{html});
-
-            document.deinit();
-            alloc.free(html);
-            continue;
-        } else {
-            print("\nclosing\n", .{});
-            break;
-        }
-    }
-}
-
-// TODO: CHANGE THE PATH JOINING TO USE `std.fs.path` library.
-
 fn generatePageRecursive(
     allocator: Allocator,
     cwd: *std.fs.Dir,
@@ -112,7 +70,12 @@ fn generatePageRecursive(
     dest_dir: []const u8,
 ) !void {
     // Create the dest_dir
-    try cwd.*.makeDir(dest_dir);
+    cwd.*.makeDir(dest_dir) catch |err| {
+        if (err != std.posix.OpenError.PathAlreadyExists) {
+            print("error creating directory: {s}\n", .{dest_dir});
+            return err;
+        }
+    };
 
     // open the content directory
     const dir = try cwd.*.openDir(content_dir, .{ .iterate = true });
@@ -178,7 +141,7 @@ fn sanitizeFilepath(filepath: []const u8) FSError!void {
     // check for proper markdown file.
     if (ext.len == 0) return FSError.MissingExtError;
     if (!std.mem.eql(u8, ext, ".md")) {
-        print("file format: {s}", .{ext});
+        print("skipped file: {s}\n", .{ext});
         return FSError.InvalidFormatError;
     }
 }
@@ -205,6 +168,51 @@ fn createHtmlFile(
     var buffered = std.io.bufferedWriter(file.writer());
     var bufwriter = buffered.writer();
 
-    try bufwriter.writeAll(content);
+    const html_temp_content = try std.fmt.allocPrint(allocator, html_template, .{content});
+    defer allocator.free(html_temp_content);
+
+    try bufwriter.writeAll(html_temp_content);
     try buffered.flush();
+}
+
+fn replFunction(alloc: Allocator) !void {
+    const stdin_reader = std.io.getStdIn().reader();
+    var stdin_buffer = std.io.bufferedReader(stdin_reader);
+    const stdin = stdin_buffer.reader();
+
+    print("\nSSziG v{s}\n", .{config.version});
+    print("write in a markdown line and see the parsed output\n\n", .{});
+    print("Type 'quit' or 'exit' to stop\n", .{});
+    print("----------------------------------------\n", .{});
+
+    while (true) {
+        print("> ", .{});
+
+        // read from stdin
+        if (try stdin.readUntilDelimiterOrEofAlloc(alloc, '\n', 1024)) |input| {
+            defer alloc.free(input);
+
+            // check for exit command.
+            if (std.mem.eql(u8, input, "quit") or std.mem.eql(u8, input, "exit")) {
+                print("closing\n", .{});
+                break;
+            }
+
+            var lex = Lexer.init(input);
+            var p = try Parser.init(alloc, &lex);
+            var document = try p.parse();
+
+            var generator = Html.init(alloc);
+            const html = try generator.generateHtml(document);
+
+            print("SSzig: '{s}'\n", .{html});
+
+            document.deinit();
+            alloc.free(html);
+            continue;
+        } else {
+            print("\nclosing\n", .{});
+            break;
+        }
+    }
 }
