@@ -51,8 +51,11 @@ pub fn main() !void {
         return;
     }
 
-    if (res.args.file) |filename| {
-        try parseFile(filename);
+    if (res.args.dir) |dirname| {
+        var cwd = std.fs.cwd();
+
+        try generatePageRecursive(allocator, &cwd, dirname, "page");
+        // try parseFile(filename);
         return;
     }
 
@@ -101,21 +104,61 @@ fn replFunction(alloc: Allocator) !void {
     }
 }
 
-fn parseFile(filepath: []const u8) !void {
+// TODO: CHANGE THE PATH JOINING TO USE `std.fs.path` library.
+
+fn generatePageRecursive(
+    allocator: Allocator,
+    cwd: *std.fs.Dir,
+    content_dir: []const u8,
+    dest_dir: []const u8,
+) !void {
+    // Create the dest_dir
+    try cwd.*.makeDir(dest_dir);
+
+    // open the content directory
+    const dir = try cwd.*.openDir(content_dir, .{ .iterate = true });
+    var it = dir.iterate();
+    while (try it.next()) |entry| switch (entry.kind) {
+        .directory => {
+            const new_content_dir = try std.mem.concat(allocator, u8, &.{
+                content_dir,
+                entry.name,
+            });
+            defer allocator.free(new_content_dir);
+
+            const new_dest_dir = try std.mem.concat(allocator, u8, &.{
+                dest_dir,
+                entry.name,
+            });
+            defer allocator.free(new_dest_dir);
+
+            try generatePageRecursive(allocator, cwd, new_content_dir, new_dest_dir);
+        },
+        .file => {
+            // Create a new file, parse content, and add the parsed content to the new file.
+            const content_file_path = try std.mem.concat(allocator, u8, &.{ content_dir, entry.name });
+            defer allocator.free(content_file_path);
+
+            try parseFile(content_file_path, dest_dir, cwd);
+        },
+        else => return error.InvalidFormatError,
+    };
+}
+
+fn parseFile(
+    content_file_path: []const u8,
+    dest_dir: []const u8,
+    cwd: *std.fs.Dir,
+) !void {
     const allocator = std.heap.page_allocator;
 
-    try sanitizeFilepath(filepath);
-
-    const dir = path.dirname(filepath) orelse ".";
-    const filename = path.basename(filepath);
+    // Do nothing if the file is not markdown
+    sanitizeFilepath(content_file_path) catch return;
+    const filename = path.basename(content_file_path);
 
     // Read from file.
-    const cwd = std.fs.cwd();
-    const file = try cwd.openFile(filepath, .{ .mode = .read_only });
-    defer file.close();
-
     const max_bytes = std.math.maxInt(usize);
-    const input = cwd.readFileAlloc(allocator, filepath, max_bytes) catch |err| {
+    const input = cwd.*.readFileAlloc(allocator, content_file_path, max_bytes) catch |err| {
         // TODO: Handle this error better
         print("Failed to read file: {}\n", .{err});
         return err;
@@ -128,10 +171,10 @@ fn parseFile(filepath: []const u8) !void {
     defer document.deinit();
 
     var generator = Html.init(allocator);
-    const html = try generator.generateHtml(document);
-    defer allocator.free(html);
+    const html_content = try generator.generateHtml(document);
+    defer allocator.free(html_content);
 
-    try createHtmlFile(allocator, dir, filename, html);
+    try createHtmlFile(allocator, dest_dir, filename, html_content);
 }
 
 fn sanitizeFilepath(filepath: []const u8) FSError!void {
@@ -147,7 +190,7 @@ fn sanitizeFilepath(filepath: []const u8) FSError!void {
 
 fn createHtmlFile(
     allocator: Allocator,
-    dir: []const u8,
+    dest_dir: []const u8,
     filename: []const u8,
     content: []const u8,
 ) !void {
@@ -158,12 +201,14 @@ fn createHtmlFile(
     const html_filename = try std.mem.concat(allocator, u8, &.{ basename_no_ext, ".html" });
     defer allocator.free(html_filename);
 
-    const html_path = try std.fs.path.join(allocator, &.{ dir, html_filename });
+    const html_path = try std.fs.path.join(allocator, &.{ dest_dir, html_filename });
     defer allocator.free(html_path);
 
-    // TODO: Change this to buffered writer.
-    var file = try std.fs.cwd().createFile(html_path, .{ .read = true, .truncate = true });
+    // Write to the destination file.
+    var file = try std.fs.cwd().createFile(html_path, .{});
     defer file.close();
+    var buffered = std.io.bufferedWriter(file.writer());
+    var bufwriter = buffered.writer();
 
-    try file.writeAll(content);
+    try bufwriter.writeAll(content);
 }
