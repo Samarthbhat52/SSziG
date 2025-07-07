@@ -19,7 +19,7 @@ pub fn parseQuote(self: *Parser) ParseError!ASTNode {
             }
 
             var new_line_node = ASTNode.init(self.allocator, .text);
-            new_line_node.content = "\n";
+            new_line_node.content = self.current_token.literal;
 
             try paragraph_node.children.append(new_line_node);
 

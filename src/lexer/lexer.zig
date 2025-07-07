@@ -185,7 +185,7 @@ pub const Lexer = struct {
                 tok = Token.newToken(.tilde, delim);
             },
             '>' => {
-                if (l.col == 0 and l.peekAhead(1) == ' ') {
+                if (l.col == 0 and (l.peekAhead(1) == ' ' or l.peekAhead(1) == '\n')) {
                     l.advance();
                     l.eatWhiteSpaces();
                     return Token.newToken(.quote, ">");
