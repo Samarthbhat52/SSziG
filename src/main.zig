@@ -58,6 +58,7 @@ pub fn main() !u8 {
     defer res.deinit();
 
     if (res.args.help != 0) {
+        print("SSziG 0.1.0\nA fast and lightweight Markdown-to-HTML parser written in Zig\n\n", .{});
         clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{}) catch {};
         return 0;
     }
@@ -74,6 +75,8 @@ pub fn main() !u8 {
             printError(dirname, err);
             return 1;
         };
+
+        print("files parsed successfully.", .{});
         return 0;
     }
 
@@ -90,6 +93,8 @@ pub fn main() !u8 {
             printError(filename, err);
             return 1;
         };
+
+        print("file parsed successfully.", .{});
         return 0;
     }
 
