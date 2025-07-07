@@ -1,6 +1,5 @@
 const std = @import("std");
 
-// TODO: Change this to stdout
 const print = std.debug.print;
 const path = std.fs.path;
 const Allocator = std.mem.Allocator;
@@ -21,7 +20,7 @@ const FSError = error{
     InvalidFormatError,
 };
 
-pub fn main() !void {
+pub fn main() !u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -40,24 +39,25 @@ pub fn main() !void {
         .allocator = gpa.allocator(),
     }) catch |err| {
         diag.report(std.io.getStdErr().writer(), err) catch {};
-        return err;
+        return 1;
     };
     defer res.deinit();
 
     if (res.args.help != 0) {
-        return clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
+        try clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
+        return 0;
     }
 
     if (res.args.version != 0) {
         print("SSziG v{s}\n", .{config.version});
-        return;
+        return 0;
     }
 
     if (res.args.dir) |dirname| {
         var cwd = std.fs.cwd();
 
         try generatePageRecursive(allocator, &cwd, dirname, "page");
-        return;
+        return 0;
     }
 
     if (res.args.file) |filename| {
@@ -70,10 +70,11 @@ pub fn main() !void {
         };
 
         try parseFile(allocator, filename, "output");
-        return;
+        return 0;
     }
 
-    try replFunction(allocator);
+    try clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
+    return 1;
 }
 
 fn generatePageRecursive(
@@ -185,46 +186,4 @@ fn createHtmlFile(
 
     try bufwriter.writeAll(html_temp_content);
     try buffered.flush();
-}
-
-fn replFunction(alloc: Allocator) !void {
-    const stdin_reader = std.io.getStdIn().reader();
-    var stdin_buffer = std.io.bufferedReader(stdin_reader);
-    const stdin = stdin_buffer.reader();
-
-    print("\nSSziG v{s}\n", .{config.version});
-    print("write in a markdown line and see the parsed output\n\n", .{});
-    print("Type 'quit' or 'exit' to stop\n", .{});
-    print("----------------------------------------\n", .{});
-
-    while (true) {
-        print("> ", .{});
-
-        // read from stdin
-        if (try stdin.readUntilDelimiterOrEofAlloc(alloc, '\n', 1024)) |input| {
-            defer alloc.free(input);
-
-            // check for exit command.
-            if (std.mem.eql(u8, input, "quit") or std.mem.eql(u8, input, "exit")) {
-                print("closing\n", .{});
-                break;
-            }
-
-            var lex = Lexer.init(input);
-            var p = try Parser.init(alloc, &lex);
-            var document = try p.parse();
-
-            var generator = Html.init(alloc);
-            const html = try generator.generateHtml(document);
-
-            print("SSzig: '{s}'\n", .{html});
-
-            document.deinit();
-            alloc.free(html);
-            continue;
-        } else {
-            print("\nclosing\n", .{});
-            break;
-        }
-    }
 }
