@@ -70,7 +70,7 @@ pub fn main() !u8 {
     if (res.args.dir) |dirname| {
         var cwd = std.fs.cwd();
 
-        generatePageRecursive(allocator, &cwd, dirname, "page") catch |err| {
+        generatePageRecursive(allocator, &cwd, dirname, "public") catch |err| {
             printError(dirname, err);
             return 1;
         };
