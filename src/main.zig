@@ -20,6 +20,20 @@ const FSError = error{
     InvalidFormatError,
 };
 
+fn Error(comptime fmt: []const u8, args: anytype) void {
+    const stderr = std.io.getStdErr().writer();
+    stderr.print("Error: " ++ fmt ++ "\n", args) catch {};
+}
+
+fn printError(filepath: []const u8, err: anyerror) void {
+    switch (err) {
+        error.FileNotFound => Error("Not found: '{s}'", .{filepath}),
+        error.IsDir => Error("'{s}' is a directory, not a file", .{filepath}),
+        error.NotDir => Error("'{s}' is not a directory", .{filepath}),
+        else => Error("Failed to process file '{s}': {}", .{ filepath, err }),
+    }
+}
+
 pub fn main() !u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -44,7 +58,7 @@ pub fn main() !u8 {
     defer res.deinit();
 
     if (res.args.help != 0) {
-        try clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
+        clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{}) catch {};
         return 0;
     }
 
@@ -56,7 +70,10 @@ pub fn main() !u8 {
     if (res.args.dir) |dirname| {
         var cwd = std.fs.cwd();
 
-        try generatePageRecursive(allocator, &cwd, dirname, "page");
+        generatePageRecursive(allocator, &cwd, dirname, "page") catch |err| {
+            printError(dirname, err);
+            return 1;
+        };
         return 0;
     }
 
@@ -64,16 +81,18 @@ pub fn main() !u8 {
         // Create output directory if it doesn't exist
         std.fs.cwd().makeDir("output") catch |err| {
             if (err != std.posix.OpenError.PathAlreadyExists) {
-                print("error creating output directory\n", .{});
+                Error("error creating output directory\n", .{});
                 return err;
             }
         };
 
-        try parseFile(allocator, filename, "output");
+        parseFile(allocator, filename, "output") catch |err| {
+            printError(filename, err);
+            return 1;
+        };
         return 0;
     }
 
-    try clap.help(std.io.getStdErr().writer(), clap.Help, &params, .{});
     return 1;
 }
 
