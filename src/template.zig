@@ -8,7 +8,7 @@ pub const html_template =
     \\  </head>
     \\
     \\  <body>
-    \\    <article>{s}</article>
+    \\    {s}
     \\  </body>
     \\</html>
 ;

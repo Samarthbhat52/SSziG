@@ -40,3 +40,4 @@ pub fn parseImage(self: *Parser) ParseError!ASTNode {
 }
 
 // TODO: Improve image handling, it's very wasteful atm.
+// Wasteful how? I forgot why I wrote the above comment.
