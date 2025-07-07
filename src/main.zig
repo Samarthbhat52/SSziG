@@ -60,6 +60,19 @@ pub fn main() !void {
         return;
     }
 
+    if (res.args.file) |filename| {
+        // Create output directory if it doesn't exist
+        std.fs.cwd().makeDir("output") catch |err| {
+            if (err != std.posix.OpenError.PathAlreadyExists) {
+                print("error creating output directory\n", .{});
+                return err;
+            }
+        };
+
+        try parseFile(allocator, filename, "output");
+        return;
+    }
+
     try replFunction(allocator);
 }
 
@@ -101,26 +114,25 @@ fn generatePageRecursive(
             const content_file_path = try path.join(allocator, &.{ content_dir, entry.name });
             defer allocator.free(content_file_path);
 
-            try parseFile(content_file_path, dest_dir, cwd);
+            try parseFile(allocator, content_file_path, dest_dir);
         },
         else => return error.InvalidFormatError,
     };
 }
 
 fn parseFile(
+    allocator: Allocator,
     content_file_path: []const u8,
     dest_dir: []const u8,
-    cwd: *std.fs.Dir,
 ) !void {
-    const allocator = std.heap.page_allocator;
-
     // Do nothing if the file is not markdown
     sanitizeFilepath(content_file_path) catch return;
     const filename = path.basename(content_file_path);
 
     // Read from file.
     const max_bytes = std.math.maxInt(usize);
-    const input = try cwd.*.readFileAlloc(allocator, content_file_path, max_bytes);
+    const input = try std.fs.cwd().readFileAlloc(allocator, content_file_path, max_bytes);
+    defer allocator.free(input);
 
     // Parse md to html.
     var lex = Lexer.init(input);
